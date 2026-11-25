@@ -95,12 +95,11 @@ header.site .bar { padding-top: 12px; padding-bottom: 12px; display: flex; flex-
 .logo { display: grid; grid-template-columns: repeat(2, 11px); gap: 3px; flex: none; }
 .logo span { display: block; width: 11px; height: 11px; }
 .logo span:nth-child(1) { background: var(--yellow); outline: 2px solid var(--ink); outline-offset: -2px; }
-.logo span:nth-child(2) { background: var(--accent); }
-.logo span:nth-child(3) { background: var(--green); }
-.logo span:nth-child(4) { background: var(--red); }
-.brand-text { display: flex; flex-direction: column; gap: 3px; }
+/* left column: yellow (what you change) over blue (what we run); right column: red (hidden) over green (public) */
+.logo span:nth-child(2) { background: var(--red); }
+.logo span:nth-child(3) { background: var(--accent); }
+.logo span:nth-child(4) { background: var(--green); }
 .brand-name { font-weight: 800; font-stretch: 125%; font-size: 18px; letter-spacing: 0.02em; line-height: 1; text-transform: uppercase; }
-.brand-sub { font-family: var(--mono); font-size: 12px; line-height: 1.2; color: var(--muted); }
 header.site nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
 header.site nav a { display: flex; align-items: center; min-height: 44px; padding: 0 14px; font-weight: 700; font-size: 15px; text-decoration: none; color: var(--ink); }
 header.site nav a:hover { color: var(--accent); }
