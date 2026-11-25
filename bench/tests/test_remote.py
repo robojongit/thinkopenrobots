@@ -1,0 +1,480 @@
+"""`bench login`, `submit`, `status`, `pick` and `train --remote` against a gateway.
+
+Every test runs against `fake_gateway.FakeGateway`. When ``INKLING_OPS_DIR`` points at a
+checkout of the private ops repo (with ``uv sync`` done there), the tests marked ``both`` also
+run against the real server, started as ``python -m gateway dev`` (real app and queue, fakes for
+GitHub, the GPU box and vLLM).
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import stat
+import subprocess
+import sys
+import threading
+import time
+import urllib.request
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+import pytest
+
+from bench import doctor, infra, remote
+from bench.archive import ArchiveProblem, build, collect
+from bench.cli import main
+from bench.config import load_config
+from bench.exitcodes import ExitCode
+from bench.gateway import Gateway, GatewayError
+from bench.tests.fake_gateway import FakeGateway
+from harness.tests.conftest import CHAT_AND_RUN
+
+REPO = Path(__file__).resolve().parents[2]
+OPS = os.environ.get("INKLING_OPS_DIR")
+
+
+class RealGateway:
+    """The ops repo's server in dev mode, as a subprocess."""
+
+    def __init__(self, data_dir: Path) -> None:
+        env = {k: v for k, v in os.environ.items() if k not in ("VIRTUAL_ENV", "PYTHONPATH")}
+        env["INKLING_TRAIN_SPLIT"] = str(REPO / "splits" / "train.json")
+        cmd = [
+            "uv",
+            "run",
+            "--directory",
+            str(OPS),
+            "--frozen",
+            "python",
+            "-m",
+            "gateway",
+            "dev",
+            "--port",
+            "0",
+            "--data-dir",
+            str(data_dir),
+            "--pick-window-open",
+        ]
+        self.proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env
+        )
+        self.log: list[str] = []
+        deadline = time.time() + 120
+        self.url = ""
+        while time.time() < deadline:
+            line = self.proc.stdout.readline()
+            if not line:
+                break
+            self.log.append(line)
+            if m := re.match(r"listening on (http://\S+)", line):
+                self.url = m[1]
+                break
+        if not self.url:
+            self.proc.kill()
+            raise RuntimeError("ops dev server did not start:\n" + "".join(self.log))
+        threading.Thread(target=lambda: self.log.extend(self.proc.stdout), daemon=True).start()
+
+    def approve(self, user_code: str, login: str) -> None:
+        body = json.dumps({"user_code": user_code, "login": login}).encode()
+        req = urllib.request.Request(
+            self.url + "/dev/approve",
+            body,
+            method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+        urllib.request.urlopen(req, timeout=10).read()
+
+    def score_all(self, key: str) -> None:
+        gw = Gateway(self.url, key)
+        for _ in range(200):
+            subs = gw.submissions()["submissions"]
+            if all(s["state"] not in ("queued", "running") for s in subs):
+                return
+            time.sleep(0.1)
+        raise AssertionError("submissions not scored")
+
+    def close(self) -> None:
+        self.proc.terminate()
+        self.proc.wait(10)
+
+
+class FakeBackend:
+    def __init__(self) -> None:
+        self.fake = FakeGateway().__enter__()
+        self.url = self.fake.url
+        self.fake.state.window_open = True
+
+    def approve(self, user_code: str, login: str) -> None:
+        req = urllib.request.Request(
+            self.url + "/dev/approve",
+            json.dumps({"user_code": user_code, "login": login}).encode(),
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=10).read()
+
+    def score_all(self, key: str) -> None:
+        self.fake.score_all()
+
+    def close(self) -> None:
+        self.fake.__exit__()
+
+
+BACKENDS = ["fake"] + (["real"] if OPS else [])
+
+
+@pytest.fixture(params=BACKENDS)
+def server(request, tmp_path):
+    backend = RealGateway(tmp_path / "ops-data") if request.param == "real" else FakeBackend()
+    yield backend
+    backend.close()
+
+
+@pytest.fixture
+def fake(tmp_path):
+    backend = FakeBackend()
+    yield backend
+    backend.close()
+
+
+@pytest.fixture
+def home(tmp_path, monkeypatch):
+    """A working directory with agent/, a config dir in tmp, and fast polling."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("INKLING_CONFIG", str(tmp_path / "none.json"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    for name in (
+        "INKLING_MODEL_URL",
+        "INKLING_GATEWAY_HOST",
+        "INKLING_GATEWAY_URL",
+        "INKLING_KEY_PATH",
+        "INKLING_MODEL",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(remote, "POLL_S", 0.1)
+    monkeypatch.setattr(remote, "sleep", lambda s: time.sleep(min(s, 0.1)))
+    agent = tmp_path / "agent"
+    agent.mkdir()
+    (agent / "agent.py").write_text(CHAT_AND_RUN)
+    (agent / "NOTES.md").write_text("Model: Inkling 2 Mini. Coding agent: none.\n")
+    (agent / "memory").mkdir()
+    (agent / "memory" / "README.md").write_text("notes\n")
+    (agent / "__pycache__").mkdir()
+    (agent / "__pycache__" / "agent.cpython-311.pyc").write_bytes(b"\0junk")
+    return tmp_path
+
+
+def run_cli(capsys, *argv):
+    code = main(list(argv))
+    out = capsys.readouterr()
+    return code, out.out, out.err
+
+
+def login(capsys, server, monkeypatch, name="alice"):
+    monkeypatch.setenv("INKLING_GATEWAY_URL", server.url)
+    code, out, err = run_cli(capsys, "login", "--no-wait", "--json")
+    assert code == 0, err
+    user_code = json.loads(out)["user_code"]
+    assert user_code in err and "github.com/login/device" in err
+    server.approve(user_code, name)
+    code, out, err = run_cli(capsys, "login", "--json")
+    assert code == 0, err
+    return json.loads(out)
+
+
+# --- login ---------------------------------------------------------------------------------------
+def test_login_saves_the_key_private_and_never_prints_it(capsys, home, server, monkeypatch):
+    result = login(capsys, server, monkeypatch)
+    assert result["status"] == "ok" and result["account"] == "alice"
+    key_path = Path(result["key_path"])
+    key = key_path.read_text().strip()
+    assert key.startswith("ink_") and key_path == home / "config" / "inkling-robo" / "key"
+    if os.name == "posix":
+        assert stat.S_IMODE(key_path.stat().st_mode) == 0o600
+    assert key not in json.dumps(result)
+    assert not (home / "config" / "inkling-robo" / "login.json").exists()
+    code, out, err = run_cli(capsys, "status")
+    assert code == 0 and "no submissions yet" in out and key not in out + err
+
+
+def test_login_waits_and_the_pending_code_is_reused(capsys, home, fake, monkeypatch):
+    monkeypatch.setenv("INKLING_GATEWAY_URL", fake.url)
+    run_cli(capsys, "login", "--no-wait")
+    first = re.search(r"code (\d{4}-\d{4})", capsys.readouterr().err or "") or None
+    code, out, err = run_cli(capsys, "login", "--no-wait", "--json")
+    user_code = json.loads(out)["user_code"]
+    assert first is None or first[1] == user_code
+    assert len(fake.fake.state.logins) == 1  # the same flow, not a new code
+    threading.Timer(0.3, fake.approve, (user_code, "bob")).start()
+    code, out, err = run_cli(capsys, "login")
+    assert code == 0 and "logged in as bob" in out
+
+
+def test_commands_need_a_login_first(capsys, home, fake, monkeypatch):
+    monkeypatch.setenv("INKLING_GATEWAY_URL", fake.url)
+    for argv in (["submit"], ["status"], ["pick"], ["train", "--remote"]):
+        code, _, err = run_cli(capsys, *argv)
+        assert code == ExitCode.NOT_READY and "bench login" in err, argv
+
+
+def test_plain_http_only_for_this_machine(capsys, home, monkeypatch):
+    monkeypatch.setenv("INKLING_GATEWAY_URL", "http://gateway.example.org")
+    code, _, err = run_cli(capsys, "status")
+    assert code == ExitCode.NOT_READY and "https" in err
+
+
+# --- submit, status, pick -----------------------------------------------------------------------
+def test_submit_status_and_pick(capsys, home, server, monkeypatch):
+    key = Path(login(capsys, server, monkeypatch)["key_path"]).read_text().strip()
+    code, out, err = run_cli(capsys, "submit", "--json")
+    assert code == 0, err
+    sub = json.loads(out)
+    assert sub["state"] == "queued" and re.match(r"^s\d{4,}$", sub["id"])
+    code, out, err = run_cli(capsys, "submit")
+    if code == 0:  # the real server may already have scored the first one
+        server.score_all(key)
+        code, out, err = run_cli(capsys, "submit")
+    assert code == ExitCode.LIMITED == 8 and "queue" in err
+    server.score_all(key)
+    code, out, _ = run_cli(capsys, "status")
+    assert (
+        code == 0
+        and sub["id"] in out
+        and "(95%" in out
+        and "submissions in the last 24 hours" in out
+    )
+    code, out, _ = run_cli(capsys, "status", sub["id"], "--json")
+    one = json.loads(out)
+    assert one["state"] == "done" and 0 <= one["ci_low"] <= one["score"] <= one["ci_high"] <= 100
+    assert not {"per_task", "seeds", "log", "logs"} & set(one)
+    code, out, _ = run_cli(capsys, "status", "s9999")
+    assert code == ExitCode.NOT_FOUND
+    code, out, _ = run_cli(capsys, "pick", sub["id"], "--json")
+    assert code == 0 and json.loads(out)["picks"] == [sub["id"]]
+    assert json.loads(out)["source"] == "explicit"
+    code, out, _ = run_cli(capsys, "pick")
+    assert code == 0 and sub["id"] in out
+    assert run_cli(capsys, "pick", "a", "b", "c")[0] == ExitCode.USAGE
+
+
+def test_quota_and_window_errors_map_to_limited(capsys, home, fake, monkeypatch):
+    login(capsys, fake, monkeypatch)
+    for _ in range(3):
+        assert run_cli(capsys, "submit")[0] == 0
+        fake.fake.score_all()
+    code, _, err = run_cli(capsys, "submit", "--json")
+    assert code == ExitCode.LIMITED and "3 submissions" in err
+    fake.fake.state.window_open = False
+    sid = fake.fake.state.jobs[0]["id"]
+    code, _, err = run_cli(capsys, "pick", sid)
+    assert code == ExitCode.LIMITED and "not open" in err
+
+
+def test_submit_checks_agent_before_uploading(capsys, home, fake, monkeypatch):
+    login(capsys, fake, monkeypatch)
+    agent = home / "agent"
+    (agent / "run.sh").write_text("echo hi")
+    if os.name == "posix":
+        (agent / "link.py").symlink_to("/etc/passwd")
+    (agent / "NOTES.md").unlink()
+    code, _, err = run_cli(capsys, "submit")
+    assert code == ExitCode.NOT_READY
+    assert "run.sh: file type not allowed" in err and "NOTES.md is missing" in err
+    if os.name == "posix":
+        assert "link.py is a symbolic link" in err
+    assert fake.fake.state.uploads == []
+
+
+def test_archive_is_deterministic_and_skips_caches(home):
+    a, b = build(home / "agent"), build(home / "agent")
+    assert a.data == b.data and a.files == 3
+    assert set(collect(home / "agent")) == {
+        "agent/agent.py",
+        "agent/NOTES.md",
+        "agent/memory/README.md",
+    }
+    (home / "agent" / "big.md").write_bytes(b"x" * (5 * 1024 * 1024 + 1))
+    with pytest.raises(ArchiveProblem, match="limit is 5242880"):
+        collect(home / "agent")
+
+
+# --- remote training --------------------------------------------------------------------------
+def test_train_remote_downloads_and_scores_like_a_local_run(capsys, home, server, monkeypatch):
+    login(capsys, server, monkeypatch)
+    argv = [
+        "train",
+        "--remote",
+        "--tasks",
+        "cube_lifting,cube_stack",
+        "--seeds",
+        "2",
+        "--out",
+        "runs/r1",
+        "--json",
+    ]
+    code, out, err = run_cli(capsys, *argv)
+    assert code == 0, err
+    report = json.loads(out)
+    assert report["episodes"] == 4 and report["planned"] == 4 and report["complete"]
+    assert set(report["per_task"]) == {"cube_lifting", "cube_stack"}
+    run = home / "runs" / "r1"
+    assert (run / "score.json").exists() and (home / "results.tsv").exists()
+    assert json.loads((run / "remote.json").read_text())["downloaded"] is True
+    assert json.loads((run / "run.json").read_text())["where"] == "remote"
+    seeds = json.loads((REPO / "splits" / "train.json").read_text())["seeds"]
+    first = seeds["cube_lifting"][0]
+    assert (run / "cube_lifting" / f"seed_{first}" / "result.json").exists()
+    assert not (run / ".incoming").exists() and not (run / ".results.tar.gz").exists()
+    code, out, _ = run_cli(capsys, "view", "runs/r1", "--json")
+    assert code == 0
+    code, out, _ = run_cli(capsys, "compare", "runs/r1", "runs/r1", "--json")
+    assert code == 0
+    # Resuming a finished run sends nothing new.
+    code, out, err = run_cli(capsys, *argv)
+    assert code == 0 and "queued" not in err
+
+
+def test_train_remote_rules(capsys, home, fake, monkeypatch):
+    login(capsys, fake, monkeypatch)
+    code, _, err = run_cli(capsys, "train", "--remote", "--seeds", "8")
+    assert code == ExitCode.USAGE and "at most 50" in err
+    code, _, err = run_cli(capsys, "train", "--remote", "--model-url", "http://x/v1")
+    assert code == ExitCode.USAGE and "--model-url" in err
+    code, _, err = run_cli(capsys, "train", "--remote", "--budget-calls", "3")
+    assert code == ExitCode.USAGE
+    code, _, err = run_cli(
+        capsys, "train", "--remote", "--seed-list", "1-3", "--tasks", "cube_lifting"
+    )
+    assert code == ExitCode.USAGE and "training seeds only" in err
+    assert fake.fake.state.jobs == []
+
+
+def test_native_windows_trains_remotely(capsys, home, fake, monkeypatch):
+    login(capsys, fake, monkeypatch)
+    monkeypatch.setattr(doctor, "is_native_windows", lambda: True)
+    code, out, err = run_cli(
+        capsys, "train", "--tasks", "cube_lifting", "--seeds", "1", "--out", "runs/w"
+    )
+    assert code == 0, err
+    assert "native Windows" in err and "1/1 episodes scored" in out
+    (job,) = fake.fake.state.jobs
+    assert job["kind"] == "train" and list(job["plan"]) == ["cube_lifting"]
+
+
+def test_waiting_prints_the_waking_message(capsys, home, fake, monkeypatch):
+    login(capsys, fake, monkeypatch)
+    code, _, err = run_cli(
+        capsys, "train", "--remote", "--tasks", "cube_lifting", "--seeds", "1", "--out", "runs/w2"
+    )
+    assert code == 0 and "waking the shared model, about 4 minutes" in err
+
+
+def test_model_requests_wait_while_the_model_wakes(capsys, home, fake, monkeypatch):
+    login(capsys, fake, monkeypatch)
+    config = load_config()
+    fake.fake.state.waking = 2
+    url = config.resolve_model_url()
+    messages = []
+    result = infra.wait_until_ready(
+        lambda: infra.probe(url, "inkling-2-mini", config.api_key_for(url)),
+        sleep=lambda s: None,
+        log=messages.append,
+    )
+    assert result.ok and messages == ["waking the shared model, about 1 minute"] * 2
+
+
+# --- the key goes to the gateway only -----------------------------------------------------------
+def test_key_is_sent_only_to_the_gateway_origin(capsys, home, fake, monkeypatch):
+    login(capsys, fake, monkeypatch)
+    config = load_config()
+    key = config.read_key()
+    assert config.api_key_for(fake.url + "/v1") == key
+    assert config.api_key_for(fake.url.replace("127.0.0.1", "localhost") + "/v1") is None
+    port = int(fake.url.rsplit(":", 1)[1])
+    assert config.api_key_for(f"http://127.0.0.1:{port + 1}/v1") is None
+    assert config.api_key_for("https://api.openai.com/v1") is None
+    assert config.api_key_for("http://localhost:11434/v1") is None
+
+
+def test_redirects_are_not_followed_with_the_key(home):
+    seen = []
+
+    class Capture(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            seen.append(self.headers.get("Authorization"))
+            self.send_response(200)
+            self.end_headers()
+
+        def log_message(self, *a):
+            pass
+
+    capture = ThreadingHTTPServer(("127.0.0.1", 0), Capture)
+    target = f"http://127.0.0.1:{capture.server_address[1]}/steal"
+
+    class Redirect(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            self.send_response(302)
+            self.send_header("Location", target)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, *a):
+            pass
+
+    redirect = ThreadingHTTPServer(("127.0.0.1", 0), Redirect)
+    for s in (capture, redirect):
+        threading.Thread(target=s.serve_forever, daemon=True).start()
+    try:
+        gw = Gateway(f"http://127.0.0.1:{redirect.server_address[1]}", "ink_secret")
+        with pytest.raises(GatewayError):
+            gw.submissions()
+        assert seen == []
+    finally:
+        capture.shutdown()
+        redirect.shutdown()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX permissions")
+def test_key_file_permissions_are_fixed_on_rewrite(home):
+    config = load_config()
+    config.key_path.parent.mkdir(parents=True)
+    config.key_path.write_text("old")
+    config.key_path.chmod(0o644)
+    config.save_key("ink_new")
+    assert stat.S_IMODE(config.key_path.stat().st_mode) == 0o600
+    assert config.read_key() == "ink_new"
+
+
+def test_results_with_unexpected_paths_are_refused(home, tmp_path):
+    import io
+    import tarfile
+
+    from bench.exitcodes import CliError
+
+    bad = tmp_path / "bad.tar.gz"
+    with tarfile.open(bad, "w:gz") as tar:
+        for name in ["cube_lifting/seed_1/result.json", "../evil.py"]:
+            info = tarfile.TarInfo(name)
+            info.size = 2
+            tar.addfile(info, io.BytesIO(b"{}"))
+    out = tmp_path / "run"
+    out.mkdir()
+    with pytest.raises(CliError, match="refused path"):
+        remote.extract_results(bad, out, {"cube_lifting": [1]})
+    assert not (tmp_path / "evil.py").exists() and not (out / "cube_lifting").exists()
+    link = tmp_path / "link.tar.gz"
+    with tarfile.open(link, "w:gz") as tar:
+        info = tarfile.TarInfo("cube_lifting/seed_1/result.json")
+        info.type = tarfile.SYMTYPE
+        info.linkname = "/etc/passwd"
+        tar.addfile(info)
+    with pytest.raises(CliError, match="refused member"):
+        remote.extract_results(link, out, {"cube_lifting": [1]})
+    other = tmp_path / "other.tar.gz"
+    with tarfile.open(other, "w:gz") as tar:
+        info = tarfile.TarInfo("cube_lifting/seed_2/result.json")
+        info.size = 2
+        tar.addfile(info, io.BytesIO(b"{}"))
+    with pytest.raises(CliError, match="unexpected path"):
+        remote.extract_results(other, out, {"cube_lifting": [1]})

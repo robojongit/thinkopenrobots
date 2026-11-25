@@ -1,0 +1,3 @@
+[submodule "harness/capx"]
+	path = harness/capx
+	url = https://github.com/robojongit/cap-x.git
