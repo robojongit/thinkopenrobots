@@ -3,21 +3,30 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
-  <title>Inkling Robotics Leaderboard</title>
+  <meta name="color-scheme" content="light">
+  <title>Think Open Robots: Inkling Robotics Leaderboard</title>
   <meta name="description" content="An open challenge for robotics software. First challenge: optimizing the harness around Inkling 2 Mini to write policy as code.">
-  <link rel="stylesheet" href="style.css?v=20261125c">
-  <script src="config.js?v=20261125c"></script>
-  <script src="app.js?v=20261125c" defer></script>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css?v=20261125r1">
+  <script src="config.js?v=20261125r1"></script>
+  <script src="motion.js?v=20261125r1" defer></script>
+  <script src="app.js?v=20261125r1" defer></script>
 </head>
 <body>
-<a class="skip" href="#main">Skip to the leaderboard</a>
+<a class="skip" href="#leaderboard">Skip to the leaderboard</a>
 <header class="site">
-  <div class="wrap">
-    <a class="brand" href="index.html">Inkling Robotics Leaderboard</a>
+  <div class="wrap bar">
+    <a class="brand" href="#top">
+      <span class="logo" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+      <span class="brand-text">
+        <span class="brand-name">Think Open Robots</span>
+        <span class="brand-sub">Inkling Robotics Leaderboard</span>
+      </span>
+    </a>
     <nav aria-label="Main">
       <ul>
-        <li><a href="index.html" aria-current="page">Leaderboard</a></li>
+        <li><a href="#leaderboard" aria-current="page">Leaderboard</a></li>
         <li><a href="#join">Join</a></li>
         <li><a href="rules.html">Rules</a></li>
       </ul>
@@ -25,71 +34,334 @@
   </div>
 </header>
 
-<main id="main" class="wrap">
-  <h1>Robotics software, open to everyone</h1>
-  <p class="lead">We believe that software for robotics should be open for everyone to use. Optimizing models and harnesses shouldn't happen only inside the labs, and we think that with today's coding agents anyone who wants to can contribute. That's why we started this challenge.</p>
-
-  <section id="challenge" class="prose" aria-labelledby="challenge-h">
-    <h2 id="challenge-h">First challenge</h2>
-    <p>Optimizing the harness around Inkling 2 Mini by Thinking Machines to write policy as code.</p>
-    <p>Everyone uses the same model. Your harness prompts it to write Python that drives simulated robot arms, and the robot only runs code the model wrote. You change the code around the model: the prompts, the control loop, how the scene is shown to it, how it checks and retries its own work.</p>
-    <ul>
-      <li><strong>Tasks.</strong> Seven RoboSuite tasks in simulation, from the CaP-X benchmark (<a href="https://arxiv.org/abs/2603.22435" rel="noopener noreferrer">paper</a>, <a href="https://capgym.github.io/" rel="noopener noreferrer">project page</a>): cube lifting, stacking and restacking, nut assembly, wiping a spill, a two-arm lift and a two-arm handover.</li>
-      <li><strong>Training set.</strong> 30 public scenes per task. Run them on your own machine, or on our shared model, as often as you like.</li>
-      <li><strong>Public test.</strong> Every submission gets a score on 140 hidden scenes of the same tasks.</li>
-      <li><strong>Private test.</strong> 350 hidden scenes decide the final ranking. Half of them are goal variants nobody has seen: new instructions on the same scenes and robot API, so a harness that makes the model reason does better than one that memorises the seven tasks.</li>
-      <li><strong>Starting point.</strong> The base solution, the model with the original CaP-X harness, solves about 45% of the public test.</li>
-    </ul>
-
-    <h3 id="infra-h">Infrastructure</h3>
-    <p>Everything you need is free. Use the infrastructure we provide, your own machine, or both.</p>
-    <ul>
-      <li><strong>Our GPU machine.</strong> We run Inkling 2 Mini on an NVIDIA RTX PRO 6000 and open it to every participant at no cost. It scores your submissions (up to 3 a day), and it can run your training episodes for you (up to 10 remote runs a day, 50 episodes each). When you simulate on your own computer, your harness can still call the model on our machine.</li>
-      <li><strong>Your own machine.</strong> The simulator runs on a laptop CPU (macOS or Linux; on Windows through WSL2, or remotely on our machine). You can also point the tools at a model you serve yourself.</li>
-    </ul>
+<main id="main">
+  <section id="top" class="hero grid-ground">
+    <div class="wrap hero-in">
+      <div class="hero-text">
+        <h1 class="display">Robotics software, <span class="hl">open</span> to everyone</h1>
+        <p class="lead">We believe that software for robotics should be open for everyone to use. Optimizing models and harnesses shouldn't happen only inside the labs, and we think that with today's coding agents anyone who wants to can contribute. That's why we started this challenge.</p>
+      </div>
+      <div class="hero-art">
+        <svg id="arm" aria-hidden="true" viewBox="0 0 520 420">
+          <rect x="20" y="398" width="480" height="6" fill="#11141B"/>
+          <rect x="64" y="350" width="120" height="48" fill="#11141B"/>
+          <line class="arm-up" x1="124" y1="340" x2="222" y2="168" stroke="#11141B" stroke-width="44" stroke-linecap="round"/>
+          <line class="arm-fore" x1="222" y1="168" x2="380" y2="196" stroke="#11141B" stroke-width="36" stroke-linecap="round"/>
+          <line class="arm-up" x1="124" y1="340" x2="222" y2="168" stroke="#1E50FF" stroke-width="36" stroke-linecap="round"/>
+          <line class="arm-fore" x1="222" y1="168" x2="380" y2="196" stroke="#1E50FF" stroke-width="28" stroke-linecap="round"/>
+          <circle cx="124" cy="340" r="20" fill="#FFC800" stroke="#11141B" stroke-width="4"/>
+          <circle class="arm-fore" cx="222" cy="168" r="17" fill="#FFC800" stroke="#11141B" stroke-width="4"/>
+          <g class="arm-hand">
+            <circle cx="380" cy="196" r="13" fill="#FFC800" stroke="#11141B" stroke-width="4"/>
+            <rect x="374" y="208" width="12" height="26" fill="#11141B"/>
+            <rect x="346" y="232" width="68" height="10" fill="#11141B"/>
+            <rect class="arm-finger-l" x="346" y="240" width="9" height="46" fill="#11141B"/>
+            <rect class="arm-finger-r" x="405" y="240" width="9" height="46" fill="#11141B"/>
+          </g>
+          <rect class="arm-cube" x="357" y="248" width="46" height="46" fill="#D9301A" stroke="#11141B" stroke-width="4"/>
+          <g class="arm-guides">
+            <line x1="362" y1="306" x2="362" y2="330" stroke="#11141B" stroke-width="2" stroke-dasharray="4 5"/>
+            <line x1="398" y1="306" x2="398" y2="330" stroke="#11141B" stroke-width="2" stroke-dasharray="4 5"/>
+          </g>
+          <rect x="350" y="338" width="60" height="60" fill="#00A65A" stroke="#11141B" stroke-width="4"/>
+          <rect x="440" y="370" width="28" height="28" fill="#FFC800" stroke="#11141B" stroke-width="4"/>
+        </svg>
+      </div>
+    </div>
   </section>
 
-  <div id="status" class="notice" role="status" aria-live="polite">Loading leaderboard&hellip;</div>
-  <noscript><p class="notice">This page needs JavaScript to show the leaderboard.</p></noscript>
+  <section id="challenge" class="band-rule" aria-labelledby="challenge-h">
+    <div class="wrap pad-section">
+      <div class="intro">
+        <div class="intro-col">
+          <h2 id="challenge-h" class="title">First challenge</h2>
+          <p class="kicker">Optimizing the harness around Inkling 2 Mini by Thinking Machines to write policy as code.</p>
+        </div>
+      </div>
 
-  <div id="data-sections" hidden>
+      <div class="pipe-wrap" data-loop>
+        <div class="pipe">
+          <div class="card">
+            <div class="card-head bg-yellow">
+              <span class="eyebrow">You change this</span>
+              <svg aria-hidden="true" width="28" height="28" viewBox="0 0 28 28"><rect x="2" y="2" width="24" height="24" fill="none" stroke="#11141B" stroke-width="2.5"/><rect x="9" y="9" width="10" height="10" fill="#11141B"/></svg>
+            </div>
+            <div class="card-body">
+              <h3>Your harness</h3>
+              <ul class="chips">
+                <li>the prompts</li>
+                <li>the control loop</li>
+                <li>how the scene is shown to it</li>
+                <li>how it checks and retries its own work</li>
+              </ul>
+            </div>
+            <svg class="arrow-h h-only" aria-hidden="true" width="44" height="16" viewBox="0 0 44 16"><path d="M0 8 H34" stroke="#11141B" stroke-width="3" fill="none"/><path d="M32 2 L44 8 L32 14 Z" fill="#11141B"/><rect class="token" x="-4" y="3" width="10" height="10"/></svg>
+            <svg class="arrow-v v-only" aria-hidden="true" width="16" height="44" viewBox="0 0 16 44"><path d="M8 0 V34" stroke="#11141B" stroke-width="3" fill="none"/><path d="M2 32 L8 44 L14 32 Z" fill="#11141B"/><rect class="token" x="3" y="-4" width="10" height="10"/></svg>
+          </div>
+
+          <div class="card">
+            <div class="card-head bg-blue">
+              <span class="eyebrow">Same for everyone</span>
+              <svg aria-hidden="true" width="28" height="28" viewBox="0 0 28 28"><rect x="5" y="5" width="18" height="18" fill="#FFFFFF" stroke="#11141B" stroke-width="2.5"/></svg>
+            </div>
+            <div class="card-body">
+              <h3>Inkling 2 Mini</h3>
+              <p>By Thinking Machines. Your harness prompts it to write Python.</p>
+            </div>
+            <svg class="arrow-h h-only" aria-hidden="true" width="44" height="16" viewBox="0 0 44 16"><path d="M0 8 H34" stroke="#11141B" stroke-width="3" fill="none"/><path d="M32 2 L44 8 L32 14 Z" fill="#11141B"/><rect class="token" x="-4" y="3" width="10" height="10"/></svg>
+            <svg class="arrow-v v-only" aria-hidden="true" width="16" height="44" viewBox="0 0 16 44"><path d="M8 0 V34" stroke="#11141B" stroke-width="3" fill="none"/><path d="M2 32 L8 44 L14 32 Z" fill="#11141B"/><rect class="token" x="3" y="-4" width="10" height="10"/></svg>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <span class="eyebrow">Written by the model</span>
+              <svg aria-hidden="true" width="28" height="28" viewBox="0 0 28 28"><rect x="2" y="6" width="20" height="3" fill="#11141B"/><rect x="7" y="12" width="19" height="3" fill="#11141B"/><rect x="7" y="18" width="13" height="3" fill="#11141B"/></svg>
+            </div>
+            <div class="card-body">
+              <h3>Python</h3>
+              <p>The code that drives the simulated robot arms.</p>
+            </div>
+            <svg class="arrow-h h-only" aria-hidden="true" width="44" height="16" viewBox="0 0 44 16"><path d="M0 8 H34" stroke="#11141B" stroke-width="3" fill="none"/><path d="M32 2 L44 8 L32 14 Z" fill="#11141B"/><rect class="token" x="-4" y="3" width="10" height="10"/></svg>
+            <svg class="arrow-v v-only" aria-hidden="true" width="16" height="44" viewBox="0 0 16 44"><path d="M8 0 V34" stroke="#11141B" stroke-width="3" fill="none"/><path d="M2 32 L8 44 L14 32 Z" fill="#11141B"/><rect class="token" x="3" y="-4" width="10" height="10"/></svg>
+          </div>
+
+          <div class="card">
+            <div class="card-head bg-green">
+              <span class="eyebrow">Runs only that code</span>
+              <svg aria-hidden="true" width="28" height="28" viewBox="0 0 28 28"><path d="M5 25 L11 12 L24 9" fill="none" stroke="#11141B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="11" cy="12" r="3" fill="#FFC800" stroke="#11141B" stroke-width="2"/><path d="M22 5 V13" stroke="#11141B" stroke-width="2.5"/></svg>
+            </div>
+            <div class="card-body">
+              <h3>Simulated robot arms</h3>
+              <p>The robot only runs code the model wrote.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="loop h-only">
+          <svg class="loop-lines" aria-hidden="true"><line x1="100%" y1="0" x2="100%" y2="100%"/><line x1="100%" y1="100%" x2="0" y2="100%"/><line x1="0" y1="100%" x2="0" y2="0"/></svg>
+          <svg class="loop-head" aria-hidden="true" width="16" height="12" viewBox="0 0 16 12"><path d="M0 12 L8 0 L16 12 Z" fill="#11141B"/></svg>
+          <span class="loop-label">check and retry</span>
+        </div>
+        <p class="loop-v v-only">Back to your harness: check and retry.</p>
+      </div>
+
+      <div class="facts">
+        <div class="fact">
+          <h3 class="fact-h">Tasks</h3>
+          <div class="fact-body">
+            <p class="fact-lead">Seven RoboSuite tasks in simulation, from the CaP-X benchmark (<a href="https://arxiv.org/abs/2603.22435" rel="noopener noreferrer">paper</a>, <a href="https://capgym.github.io/" rel="noopener noreferrer">project page</a>).</p>
+            <ul class="tasks">
+              <li>
+                <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="6" y="78" width="108" height="4" fill="#11141B"/><rect x="48" y="56" width="22" height="22" fill="none" stroke="#11141B" stroke-width="2" stroke-dasharray="3 3"/><line x1="59" y1="0" x2="59" y2="12" stroke="#11141B" stroke-width="4"/><rect x="42" y="12" width="34" height="5" fill="#11141B"/><rect x="42" y="17" width="5" height="22" fill="#11141B"/><rect x="71" y="17" width="5" height="22" fill="#11141B"/><rect x="48" y="20" width="22" height="22" fill="#D9301A" stroke="#11141B" stroke-width="3"/><path d="M96 66 V30" stroke="#11141B" stroke-width="3" fill="none"/><path d="M90 36 L96 28 L102 36" stroke="#11141B" stroke-width="3" fill="none"/></svg>
+                <span>Cube lifting</span>
+              </li>
+              <li>
+                <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="6" y="78" width="108" height="4" fill="#11141B"/><rect x="44" y="48" width="30" height="30" fill="#00A65A" stroke="#11141B" stroke-width="3"/><rect x="48" y="26" width="22" height="22" fill="#D9301A" stroke="#11141B" stroke-width="3"/><path d="M52 8 L59 15 L66 8" stroke="#11141B" stroke-width="3" fill="none"/></svg>
+                <span>Stacking</span>
+              </li>
+              <li>
+                <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="6" y="78" width="108" height="4" fill="#11141B"/><rect x="14" y="58" width="20" height="20" fill="#00A65A" stroke="#11141B" stroke-width="3"/><rect x="14" y="38" width="20" height="20" fill="#D9301A" stroke="#11141B" stroke-width="3"/><path d="M42 52 H74" stroke="#11141B" stroke-width="3" fill="none"/><path d="M68 46 L76 52 L68 58" stroke="#11141B" stroke-width="3" fill="none"/><rect x="84" y="58" width="20" height="20" fill="#D9301A" stroke="#11141B" stroke-width="3"/><rect x="84" y="38" width="20" height="20" fill="#00A65A" stroke="#11141B" stroke-width="3"/></svg>
+                <span>Restacking</span>
+              </li>
+              <li>
+                <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="6" y="78" width="108" height="4" fill="#11141B"/><rect x="54" y="26" width="10" height="52" fill="#11141B"/><rect x="36" y="40" width="46" height="10" fill="#FFC800" stroke="#11141B" stroke-width="3"/><rect x="82" y="42" width="22" height="6" fill="#FFC800" stroke="#11141B" stroke-width="2.5"/><path d="M59 2 V16" stroke="#11141B" stroke-width="3" fill="none"/><path d="M53 11 L59 18 L65 11" stroke="#11141B" stroke-width="3" fill="none"/></svg>
+                <span>Nut assembly</span>
+              </li>
+              <li>
+                <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="8" y="14" width="104" height="66" fill="#FFFFFF" stroke="#11141B" stroke-width="3"/><path d="M20 34 C 28 24, 44 26, 48 34 C 54 44, 40 52, 30 50 C 18 48, 14 40, 20 34 Z" fill="#1E50FF"/><path d="M52 64 L64 32 L76 64 L88 34" stroke="#11141B" stroke-width="2.5" stroke-dasharray="4 4" fill="none"/><rect x="82" y="24" width="20" height="14" fill="#FFC800" stroke="#11141B" stroke-width="3"/></svg>
+                <span>Wiping a spill</span>
+              </li>
+              <li>
+                <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="6" y="78" width="108" height="4" fill="#11141B"/><rect x="38" y="46" width="44" height="32" fill="#1E50FF" stroke="#11141B" stroke-width="3"/><rect x="34" y="42" width="52" height="6" fill="#11141B"/><rect x="24" y="50" width="14" height="6" fill="#11141B"/><rect x="82" y="50" width="14" height="6" fill="#11141B"/><path d="M6 6 L18 30 L26 50" stroke="#11141B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M114 6 L102 30 L94 50" stroke="#11141B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="18" cy="30" r="4" fill="#FFC800" stroke="#11141B" stroke-width="2"/><circle cx="102" cy="30" r="4" fill="#FFC800" stroke="#11141B" stroke-width="2"/><path d="M60 34 V12" stroke="#11141B" stroke-width="3" fill="none"/><path d="M54 18 L60 10 L66 18" stroke="#11141B" stroke-width="3" fill="none"/></svg>
+                <span>Two-arm lift</span>
+              </li>
+              <li>
+                <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="6" y="78" width="108" height="4" fill="#11141B"/><rect x="36" y="40" width="52" height="6" fill="#FFC800" stroke="#11141B" stroke-width="2.5"/><rect x="24" y="34" width="12" height="18" fill="#11141B"/><path d="M6 6 L20 20 L46 38" stroke="#11141B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M114 74 L100 62 L74 48" stroke="#11141B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="20" cy="20" r="4" fill="#FFC800" stroke="#11141B" stroke-width="2"/><circle cx="100" cy="62" r="4" fill="#FFC800" stroke="#11141B" stroke-width="2"/><path d="M56 18 H86" stroke="#11141B" stroke-width="3" fill="none"/><path d="M80 12 L88 18 L80 24" stroke="#11141B" stroke-width="3" fill="none"/></svg>
+                <span>Two-arm handover</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="fact">
+          <h3 class="fact-h">Scenes</h3>
+          <div class="fact-body scenes">
+            <div class="split split-nums" aria-hidden="true"><span>210</span><span>140</span><span>350</span></div>
+            <div class="split split-bar" aria-hidden="true" data-reveal>
+              <span class="seg bg-green"></span>
+              <span class="seg bg-red"></span>
+              <span class="seg seg-private"><span></span><span></span></span>
+            </div>
+            <div class="split split-labels">
+              <div class="split-item">
+                <span class="split-h"><span class="key bg-green" aria-hidden="true"></span>Training set</span>
+                <span class="split-t">30 public scenes per task.</span>
+              </div>
+              <div class="split-item">
+                <span class="split-h"><span class="key bg-red" aria-hidden="true"></span>Public test</span>
+                <span class="split-t">Every submission gets a score on 140 hidden scenes of the same tasks.</span>
+              </div>
+              <div class="split-item last">
+                <span class="split-h"><span class="key bg-ink" aria-hidden="true"></span>Private test</span>
+                <span class="split-t">350 hidden scenes decide the final ranking.</span>
+                <div class="private-split">
+                  <span><span class="key-sq" aria-hidden="true"></span><span><b>175</b> of the seven known tasks</span></span>
+                  <span><span class="key-sq hatch" aria-hidden="true"></span><span><b>175</b> goal variants nobody has seen</span></span>
+                </div>
+              </div>
+            </div>
+            <p class="callout">Goal variants are new instructions on the same scenes and robot API, so a harness that makes the model reason does better than one that memorises the seven tasks.</p>
+          </div>
+        </div>
+
+        <div class="fact last">
+          <h3 class="fact-h">Starting point</h3>
+          <div class="fact-body start">
+            <div class="start-num">
+              <span class="about">about</span>
+              <span class="big">45%</span>
+            </div>
+            <div class="start-right">
+              <div class="start-scale" aria-hidden="true">
+                <div class="start-bar"><span class="fill"></span><span class="mid"></span></div>
+                <div class="start-ticks"><span>0%</span><span>50%</span><span>100%</span></div>
+              </div>
+              <p>The base solution, the model with the original CaP-X harness</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="infrastructure" class="band-rule bg-white" aria-labelledby="infra-h">
+    <div class="wrap pad-section">
+      <div class="intro infra-intro">
+        <h2 id="infra-h" class="title">Infrastructure</h2>
+        <p class="kicker-s">Everything you need is free. Use the infrastructure we provide, your own machine, or both.</p>
+      </div>
+
+      <div class="infra">
+        <div class="box">
+          <div class="box-head bg-blue">
+            <span class="eyebrow">We run it, at no cost</span>
+            <h3>Our GPU machine</h3>
+          </div>
+          <div class="box-body">
+            <p>We run Inkling 2 Mini on an NVIDIA RTX PRO 6000 and open it to every participant at no cost.</p>
+            <div class="box-row">
+              <span class="row-h">Scores your submissions</span>
+              <div class="quota">
+                <span class="squares" aria-hidden="true"><span></span><span></span><span></span></span>
+                <span class="mono">up to 3 a day</span>
+              </div>
+            </div>
+            <div class="box-row">
+              <span class="row-h">Runs your training episodes for you</span>
+              <div class="quota">
+                <span class="squares" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span>
+                <span class="mono">up to 10 remote runs a day, 50 episodes each</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="infra-link">
+          <svg class="h-only" aria-hidden="true" width="188" height="20" viewBox="0 0 188 20"><path d="M12 10 H176" stroke="#11141B" stroke-width="3" fill="none"/><path d="M12 3 L0 10 L12 17 Z" fill="#11141B"/><path d="M176 3 L188 10 L176 17 Z" fill="#11141B"/></svg>
+          <svg class="v-only" aria-hidden="true" width="20" height="56" viewBox="0 0 20 56"><path d="M10 12 V44" stroke="#11141B" stroke-width="3" fill="none"/><path d="M3 12 L10 0 L17 12 Z" fill="#11141B"/><path d="M3 44 L10 56 L17 44 Z" fill="#11141B"/></svg>
+          <span class="eyebrow">Model calls</span>
+          <span class="link-t">When you simulate on your own computer, your harness can still call the model on our machine.</span>
+        </div>
+
+        <div class="box">
+          <div class="box-head bg-yellow">
+            <span class="eyebrow">You run it</span>
+            <h3>Your own machine</h3>
+          </div>
+          <div class="box-body">
+            <p>The simulator runs on a laptop CPU.</p>
+            <div class="box-row">
+              <span class="row-h">Where it runs</span>
+              <ul class="chips mono-chips">
+                <li>macOS</li>
+                <li>Linux</li>
+                <li>Windows through WSL2</li>
+              </ul>
+            </div>
+            <div class="box-row">
+              <span class="row-h">Your own model</span>
+              <span class="row-t">You can also point the tools at a model you serve yourself.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="leaderboard">
     <section id="final" aria-labelledby="final-h" hidden>
-      <h2 id="final-h">Final results</h2>
-      <p class="meta"><span id="final-meta"></span>Ranking uses the private test only. Entries in the same band are statistically tied.</p>
-      <div id="final-table"></div>
+      <div class="wrap final-in">
+        <div class="sec-head">
+          <h2 id="final-h" class="title">Final results</h2>
+          <span class="sample-tag" data-sample-tag hidden><span class="hatch-sq" aria-hidden="true"></span>Sample data, not real results</span>
+        </div>
+        <p class="sec-meta"><span id="final-meta"></span>Ranking uses the private test only. Entries in the same band are statistically tied.</p>
+        <div id="final-table" class="board-host"></div>
+      </div>
     </section>
 
     <section id="standings" aria-labelledby="standings-h">
-      <h2 id="standings-h">Public standings</h2>
-      <div class="controls">
-        <label><input type="checkbox" id="show-all"> Show every submission, not only each account's best</label>
+      <div class="wrap standings-in">
+        <div class="sec-head">
+          <h2 id="standings-h" class="title">Public standings</h2>
+          <span class="sample-tag" data-sample-tag hidden><span class="hatch-sq" aria-hidden="true"></span>Sample data, not real results</span>
+        </div>
+        <div id="status" class="notice" role="status" aria-live="polite">Loading leaderboard&hellip;</div>
+        <noscript><p class="notice">This page needs JavaScript to show the leaderboard.</p></noscript>
+        <div id="standings-body" hidden>
+          <div class="controls">
+            <label for="show-all"><input type="checkbox" id="show-all"> Show every submission, not only each account's best</label>
+          </div>
+          <div id="standings-table" class="board-host"></div>
+        </div>
       </div>
-      <div id="standings-table"></div>
-    </section>
-
-    <section id="progress" aria-labelledby="progress-h" hidden>
-      <h2 id="progress-h">Progress</h2>
-      <figure class="chart">
-        <ul class="legend" aria-hidden="true">
-          <li><svg viewBox="0 0 22 12"><path d="M0 6H22" stroke="var(--accent)" stroke-width="2" fill="none"/></svg>Best public score so far</li>
-          <li><svg viewBox="0 0 22 12"><path d="M0 6H22" stroke="var(--muted)" stroke-width="2" stroke-dasharray="6 4" fill="none"/></svg>Base solution</li>
-          <li><svg viewBox="0 0 22 12"><circle cx="11" cy="6" r="4" fill="var(--surface)" stroke="var(--muted)" stroke-width="1.5"/></svg>Each submission</li>
-        </ul>
-        <div id="chart-host" class="chart-host"></div>
-        <figcaption>Filled points set a new best. Hover or tap a point for its score and interval. The same data is in the table above.</figcaption>
-      </figure>
     </section>
   </div>
 
-  <section id="join" class="join" aria-labelledby="join-h">
-    <h2 id="join-h">Join</h2>
-    <p>Paste this into any coding agent with a terminal. The agent sets everything up and asks you before each submission; you approve one GitHub login and no permissions are requested.</p>
-    <pre id="prompt" class="prompt" tabindex="0" aria-label="Starter prompt"></pre>
-    <div class="copy-row">
-      <button type="button" id="copy-btn" class="primary">Copy prompt</button>
-      <span id="copy-status" class="status" role="status" aria-live="polite"></span>
+  <section id="progress" aria-labelledby="progress-h" hidden>
+    <div class="wrap progress-in">
+      <div class="sec-head ruled">
+        <h2 id="progress-h" class="title">Progress</h2>
+        <span class="sample-tag" data-sample-tag hidden><span class="hatch-sq" aria-hidden="true"></span>Sample data, not real results</span>
+      </div>
+      <figure class="chart">
+        <ul class="legend" aria-hidden="true">
+          <li><span class="lg-best"></span>Best public score so far</li>
+          <li><span class="lg-base"></span>Base solution</li>
+          <li><span class="lg-pt"></span>Each submission</li>
+          <li><span class="lg-rec"></span>New best</li>
+        </ul>
+        <div id="chart-host" class="chart-box"></div>
+        <figcaption>Filled points set a new best. Hover or tap a point for its score and interval. The same data is in the table above.</figcaption>
+      </figure>
     </div>
-    <p class="meta">The repository is <a data-repo="" href="https://github.com/robojongit/thinkopenrobots" rel="noopener noreferrer">on GitHub</a>. Read the <a href="rules.html">rules</a> first.</p>
+  </section>
+
+  <section id="join" class="join" aria-labelledby="join-h">
+    <div class="wrap pad-section join-in">
+      <div class="join-text">
+        <h2 id="join-h" class="join-title">Join</h2>
+        <p>Paste this into any coding agent with a terminal. The agent sets everything up and asks you before each submission; you approve one GitHub login and no permissions are requested.</p>
+      </div>
+      <div class="join-act">
+        <pre id="prompt" class="prompt" tabindex="0" aria-label="Starter prompt"></pre>
+        <div class="copy-row">
+          <span class="press"><button type="button" id="copy-btn" class="copy-btn">Copy prompt</button></span>
+          <span id="copy-status" class="copy-status" role="status" aria-live="polite"></span>
+        </div>
+        <p class="join-links">The repository is <a data-repo="" href="https://github.com/robojongit/thinkopenrobots" rel="noopener noreferrer">on GitHub</a>. Read the <a href="rules.html">rules</a> first.</p>
+      </div>
+    </div>
   </section>
 </main>
 
