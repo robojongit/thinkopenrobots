@@ -15,6 +15,7 @@ from typing import Any
 from harness.llm_relay import DEFAULT_MODEL
 
 from .archive import ArchiveProblem, build
+from .coding_agent import CodingAgentProblem, parse_notes
 from .config import Config, write_private
 from .exitcodes import CliError, ExitCode
 from .gateway import Gateway, GatewayError, cli_error
@@ -143,15 +144,44 @@ def _archive(agent_dir: Path):
         ) from None
 
 
+def coding_agent_of(agent_dir: Path) -> str:
+    """The coding agent named in ``agent_dir/NOTES.md`` (CodingAgentProblem if not valid)."""
+    notes = agent_dir / "NOTES.md"
+    if notes.is_symlink() or not notes.is_file():
+        raise CodingAgentProblem("agent/NOTES.md is missing")
+    return parse_notes(notes.read_bytes())
+
+
+def _submission(agent_dir: Path):
+    """The archive and the coding agent to submit; every problem with either at once."""
+    problems: list[str] = []
+    archive = label = None
+    try:
+        archive = build(agent_dir)
+    except ArchiveProblem as e:
+        problems += e.problems
+    try:
+        label = coding_agent_of(agent_dir)
+    except CodingAgentProblem as e:
+        if not any("NOTES.md" in p for p in problems):  # missing or empty: already said
+            problems.append(e.message)
+    if problems or archive is None or label is None:
+        raise CliError(ExitCode.NOT_READY, "agent/ cannot be submitted: " + "; ".join(problems))
+    return archive, label
+
+
 def submit(config: Config, agent_dir: Path) -> Result:
     gw = gateway_for(config)
-    archive = _archive(agent_dir)
+    archive, label = _submission(agent_dir)
+    say(f"submitting agent/ built by coding agent: {label}")
     try:
         sub = gw.submit(archive.data)
     except GatewayError as e:
         raise cli_error(e) from None
+    position = sub.get("position") or "-"
     lines = [
-        f"submitted {sub['id']}: {sub['state']}, position {sub.get('position') or '-'} in the queue"
+        f"submitted {sub['id']}: {sub['state']}, position {position} in the queue",
+        f"coding agent: {sub.get('coding_agent') or label} (shown on the leaderboard)",
     ]
     if note := _box_note(sub):
         lines.append(note)
@@ -190,7 +220,11 @@ def status(config: Config, ident: str | None) -> Result:
             )
         if ident:
             sub = gw.submission(ident)
-            text = _row(sub) + (f"\nrecord: {sub['commit_url']}" if sub.get("commit_url") else "")
+            text = _row(sub)
+            if sub.get("coding_agent"):
+                text += f"\ncoding agent: {sub['coding_agent']}"
+            if sub.get("commit_url"):
+                text += f"\nrecord: {sub['commit_url']}"
             return sub, text, ExitCode.OK
         data = gw.submissions()
     except GatewayError as e:

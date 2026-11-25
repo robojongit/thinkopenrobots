@@ -14,6 +14,8 @@ from urllib.parse import urlparse
 
 from harness.capx_env import capx_root
 
+from .coding_agent import EXAMPLE, CodingAgentProblem, parse_notes
+
 OK, FAIL, WARN, SKIP = "ok", "fail", "warn", "skip"
 PYTHON_RANGE = ((3, 10), (3, 13))
 UV_INSTALL = {
@@ -85,6 +87,23 @@ def check_agent(agent_dir: Path) -> Check:
     return Check("agent", OK, f"{entry} defines solve; {notes.name} present")
 
 
+def check_coding_agent(agent_dir: Path) -> Check:
+    """The ``Coding agent:`` line of NOTES.md that `bench submit` needs (see coding_agent.py)."""
+    notes = agent_dir / "NOTES.md"
+    if not notes.is_file():
+        return Check("coding_agent", SKIP, f"{notes} is missing (see the agent check)")
+    try:
+        label = parse_notes(notes.read_bytes())
+    except CodingAgentProblem as e:
+        return Check(
+            "coding_agent",
+            FAIL,
+            e.message,
+            f'edit {notes.as_posix()}: one line "{EXAMPLE}" naming the coding agent you use',
+        )
+    return Check("coding_agent", OK, f"{label} (shown on the leaderboard with each submission)")
+
+
 def check_simulator() -> Check:
     if is_native_windows():
         return Check(
@@ -147,6 +166,7 @@ def run_checks(agent_dir: Path, model_url: str | None) -> list[Check]:
         check_python(),
         check_uv(),
         check_agent(agent_dir),
+        check_coding_agent(agent_dir),
         check_simulator(),
         check_model_url(model_url),
     ]

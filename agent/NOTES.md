@@ -1,7 +1,15 @@
 # Notes
 
+Coding agent: reference harness (Claude Code port)
+
+The line above is read by `bench submit` and shown on the leaderboard next to each submission.
+Keep exactly one such line, starting the line, and change its value to the coding agent that
+builds this agent: a short name such as `Claude Code · Fable 5`, `Codex`, `Cursor` or `by hand`
+(1-40 characters: letters, digits, spaces and `. _ + - / ( ) ·`).
+
 - **Model:** Inkling 2 Mini, the leaderboard's fixed model, reached only through `llm.chat`.
-- **Coding agent:** Claude Code (Claude Opus 5.5) ported the harness; no tuning was done.
+- **How it was built:** Claude Code (Claude Opus 5.5) ported the CaP-X harness; no tuning was
+  done.
 
 ## What this agent is
 

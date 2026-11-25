@@ -33,6 +33,8 @@ from harness.tests.conftest import CHAT_AND_RUN
 
 REPO = Path(__file__).resolve().parents[2]
 OPS = os.environ.get("INKLING_OPS_DIR")
+LABEL = "Claude Code · Fable 5"
+LABEL_LINE = f"Coding agent:  {LABEL} "
 
 
 class RealGateway:
@@ -157,7 +159,7 @@ def home(tmp_path, monkeypatch):
     agent = tmp_path / "agent"
     agent.mkdir()
     (agent / "agent.py").write_text(CHAT_AND_RUN)
-    (agent / "NOTES.md").write_text("Model: Inkling 2 Mini. Coding agent: none.\n")
+    (agent / "NOTES.md").write_text(f"# Notes\n\n{LABEL_LINE}\n\nModel: Inkling 2 Mini.\n")
     (agent / "memory").mkdir()
     (agent / "memory" / "README.md").write_text("notes\n")
     (agent / "__pycache__").mkdir()
@@ -284,6 +286,77 @@ def test_submit_checks_agent_before_uploading(capsys, home, fake, monkeypatch):
     if os.name == "posix":
         assert "link.py is a symbolic link" in err
     assert fake.fake.state.uploads == []
+
+
+# --- coding agent ------------------------------------------------------------------------------
+def public_leaderboard(url: str) -> dict:
+    with urllib.request.urlopen(url + "/v1/leaderboard", timeout=10) as r:
+        return json.loads(r.read())
+
+
+def test_coding_agent_goes_from_notes_to_status_and_leaderboard(capsys, home, server, monkeypatch):
+    key = Path(login(capsys, server, monkeypatch, name="carol")["key_path"]).read_text().strip()
+    code, out, err = run_cli(capsys, "submit")
+    assert code == 0, err
+    assert f"coding agent: {LABEL}" in err and f"coding agent: {LABEL}" in out
+    sid = re.search(r"submitted (s\d+)", out)[1]
+    server.score_all(key)
+    code, out, _ = run_cli(capsys, "status", sid, "--json")
+    assert code == 0 and json.loads(out)["coding_agent"] == LABEL
+    code, out, _ = run_cli(capsys, "status", sid)
+    assert f"coding agent: {LABEL}" in out
+    code, out, _ = run_cli(capsys, "status", "--json")
+    assert [s["coding_agent"] for s in json.loads(out)["submissions"]] == [LABEL]
+    for _ in range(100):  # the record commit, then the leaderboard, follow the score
+        entries = [e for e in public_leaderboard(server.url)["entries"] if e["id"] == sid]
+        if entries:
+            break
+        time.sleep(0.1)
+    assert entries and entries[0]["account"] == "carol" and entries[0]["coding_agent"] == LABEL
+
+
+HOSTILE_NOTES = [
+    ("# Notes\nModel: Inkling 2 Mini.\n", 'no "Coding agent:" line'),
+    ("- **Coding agent:** Codex\n", 'no "Coding agent:" line'),
+    ("coding agent: Codex\n", 'no "Coding agent:" line'),
+    ("Coding agent: Codex\nCoding agent: Cursor\n", "2 lines starting with"),
+    ("Coding agent:   \n", "is empty"),
+    ("Coding agent: <img src=x onerror=alert(1)>\n", "not allowed"),
+    ("Coding agent: Codex & friends\n", "not allowed"),
+    ('Coding agent: "Codex"\n', "not allowed"),
+    ("Coding agent: " + "x" * 41 + "\n", "41 characters"),
+    ("Coding agent: Codex\x1b[31m\n", "not allowed"),
+    ("Coding agent: Codex\rCoding agent: x\n", "not allowed"),
+    ("Coding agent: Cod\u0435x\n", "not allowed"),  # Cyrillic e
+]
+
+
+@pytest.mark.parametrize("notes, message", HOSTILE_NOTES)
+def test_submit_refuses_a_bad_coding_agent_line(capsys, home, fake, monkeypatch, notes, message):
+    login(capsys, fake, monkeypatch)
+    (home / "agent" / "NOTES.md").write_text(notes, newline="")
+    code, _, err = run_cli(capsys, "submit")
+    assert code == ExitCode.NOT_READY and message in err
+    assert "Coding agent: Claude Code · Fable 5" in err  # the exact line to add
+    assert fake.fake.state.uploads == []
+
+
+@pytest.mark.parametrize("notes, message", HOSTILE_NOTES[:1] + HOSTILE_NOTES[3:6])
+def test_server_refuses_what_bench_refuses(capsys, home, server, monkeypatch, notes, message):
+    key = Path(login(capsys, server, monkeypatch)["key_path"]).read_text().strip()
+    (home / "agent" / "NOTES.md").write_text(notes, newline="")
+    with pytest.raises(GatewayError) as e:
+        Gateway(server.url, key).submit(build(home / "agent").data)
+    assert e.value.code == "invalid_archive" and message in e.value.message
+    assert "Coding agent: Claude Code · Fable 5" in e.value.message
+
+
+def test_remote_training_needs_no_coding_agent_line(capsys, home, server, monkeypatch):
+    login(capsys, server, monkeypatch)
+    (home / "agent" / "NOTES.md").write_text("Model: Inkling 2 Mini.\n")
+    argv = ["train", "--remote", "--tasks", "cube_lifting", "--seeds", "1", "--out", "runs/n"]
+    code, out, err = run_cli(capsys, *argv)
+    assert code == 0, err
 
 
 def test_archive_is_deterministic_and_skips_caches(home):

@@ -8,6 +8,11 @@
   var DATA_URL = "leaderboard.json";
   var SVG_NS = "http://www.w3.org/2000/svg";
   var TOKENS = { "lt10k": "under 10k", "10k-30k": "10–30k", "gt30k": "over 30k" };
+  /* The coding agent named in a submission's agent/NOTES.md: the same rule as bench and the
+   * server (bench/coding_agent.py, checked by a test). */
+  var CODING_AGENT = /^[A-Za-z0-9 ._+\-\/()\u00b7]{1,40}$/;
+  /* A GitHub login: letters, digits and single inner hyphens, at most 39 characters. */
+  var GITHUB_LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/;
 
   /* ---------- small helpers ---------- */
 
@@ -49,6 +54,15 @@
   function profileUrl(account) {
     return /^[A-Za-z0-9-]{1,39}$/.test(account) ? "https://github.com/" + account : null;
   }
+  function avatar(account) {
+    if (!GITHUB_LOGIN.test(account)) return null;
+    var img = el("img", { "class": "avatar", src: "https://github.com/" + encodeURIComponent(account) + ".png?size=64",
+      width: "24", height: "24", alt: "", loading: "lazy", decoding: "async", referrerpolicy: "no-referrer" });
+    img.addEventListener("error", function () {
+      if (img.parentNode) img.parentNode.replaceChild(el("span", { "class": "avatar", "aria-hidden": "true" }), img);
+    });
+    return img;
+  }
   function link(href, text, props) {
     var safe = httpsUrl(href);
     if (!safe) return document.createTextNode(text);
@@ -67,6 +81,11 @@
 
   function num(v) { return typeof v === "number" && isFinite(v) ? v : null; }
   function str(v, max) { return typeof v === "string" ? v.slice(0, max) : ""; }
+  function codingAgent(v) {
+    if (typeof v !== "string") return null;
+    v = v.trim();
+    return CODING_AGENT.test(v) ? v : null;
+  }
 
   function cleanEntry(e) {
     if (!e || typeof e !== "object") return null;
@@ -78,7 +97,8 @@
       id: str(e.id, 40), account: account, isBase: e.is_base === true, t: t,
       score: score, lo: lo, hi: hi,
       tokens: Object.prototype.hasOwnProperty.call(TOKENS, e.tokens_bucket) ? e.tokens_bucket : null,
-      url: str(e.commit_url, 300)
+      url: str(e.commit_url, 300),
+      agent: codingAgent(e.coding_agent)
     };
   }
   function cleanFinal(f) {
@@ -162,14 +182,18 @@
     return el("div", { "class": "table-wrap" }, [table]);
   }
 
+  function agentNode(agent) {
+    if (!agent) return null;
+    return el("span", { "class": "agent" }, [el("span", { "class": "sr-only", text: "coding agent: " }), agent]);
+  }
   function accountNodes(r, extra) {
     var nodes;
     if (r.isBase) {
-      nodes = ["Base solution", el("span", { "class": "badge", text: "Base" }),
+      nodes = ["Base solution", el("span", { "class": "badge", text: "Base" }), agentNode(r.agent),
         el("span", { "class": "sub", text: "Vanilla Inkling 2 Mini with the CaP-X harness" })];
     } else {
       var p = profileUrl(r.account);
-      nodes = [p ? link(p, r.account) : r.account];
+      nodes = [el("span", { "class": "who" }, [avatar(r.account), p ? link(p, r.account) : r.account]), agentNode(r.agent)];
       if (extra) nodes.push(el("span", { "class": "sub", text: extra }));
     }
     return nodes;
@@ -208,7 +232,9 @@
     ));
   }
 
-  function renderFinal(final) {
+  function renderFinal(final, entries) {
+    var agents = {};
+    entries.forEach(function (e) { if (e.id && e.agent) agents[e.id] = e.agent; });
     var section = $("final");
     var host = $("final-table");
     clear(host);
@@ -223,7 +249,8 @@
       rows,
       function (r) {
         var picks = r.picks.map(function (p, i) {
-          return el("span", {}, [i ? ", " : "", p.url ? link(p.url, p.id || "commit", { "aria-label": "Commit " + p.id + " by " + r.account }) : p.id]);
+          return el("span", {}, [i ? ", " : "", p.url ? link(p.url, p.id || "commit", { "aria-label": "Commit " + p.id + " by " + r.account }) : p.id,
+            agents[p.id] ? " (" + agents[p.id] + ")" : null]);
         });
         if (r.source === "default") picks.push(el("span", { "class": "sub", text: "most recent two (no picks made)" }));
         return [
@@ -348,7 +375,7 @@
       if (!near) { hide(); return; }
       hot.setAttribute("cx", near.x); hot.setAttribute("cy", near.y); hot.setAttribute("visibility", "visible");
       var e = near.e;
-      tip.textContent = (e.isBase ? "Base solution" : e.account) + ": " + fmtScore(e.score) + " (" + fmtCi(e.lo, e.hi) + "), " + timeFmt.format(new Date(e.t)) + " UTC";
+      tip.textContent = (e.isBase ? "Base solution" : e.account) + (e.agent ? " (" + e.agent + ")" : "") + ": " + fmtScore(e.score) + " (" + fmtCi(e.lo, e.hi) + "), " + timeFmt.format(new Date(e.t)) + " UTC";
       tip.hidden = false;
       var tx = Math.min(Math.max(near.x, 100), width - 100);
       tip.style.left = tx + "px"; tip.style.top = (near.y - 12) + "px";
@@ -451,7 +478,7 @@
     $("data-sections").hidden = false;
     renderStandings(data, showAll.checked);
     showAll.onchange = function () { renderStandings(data, showAll.checked); };
-    renderFinal(data.final);
+    renderFinal(data.final, data.entries);
     renderChart(data.entries);
     setStatus(sample ? "notice" : null, sample ? "Showing sample data, not real results." : "");
   }

@@ -26,8 +26,14 @@ better code more often.
 3. **Held-out goal variants exist.** Half of the private test is new instructions on the same
    scenes and API. Read `task.instruction` and `task.api_docs` at run time. Do not hard-code
    object names, colours, targets or numbers that belong to one task.
-4. **Keep `agent/NOTES.md` current.** It names the model and coding agent used (you: say which
-   one and its version) and has short notes on what the agent does. Submission needs it.
+4. **Keep `agent/NOTES.md` current.** Near its top it has exactly one line, at the start of the
+   line, naming the coding agent that builds this agent (you):
+   `Coding agent: <name>`, for example `Coding agent: Claude Code · Fable 5`, `Coding agent: Codex`
+   or `Coding agent: by hand`. The name is 1-40 characters: letters, digits, spaces and
+   `. _ + - / ( ) ·`. It is shown on the leaderboard next to each submission, so replace the base
+   solution's `reference harness (Claude Code port)` with your own name and version before the
+   first submission. `bench submit` refuses a missing, repeated or invalid line, and
+   `bench doctor` checks it. Below that line, keep short notes on what the agent does.
 5. **Log every attempt** in `agent/memory/README.md` (format is in that file), kept or reverted.
 6. **One person, one GitHub account.** Do not create accounts, work around the daily limit, or
    print, log or commit the gateway key.
@@ -172,7 +178,8 @@ previous submission (or the base). Before the first submission, and before each 
 - Run `uv run bench status` first. Never exceed 3 submissions a day, and never submit while one
   is still queued.
 - `uv run bench submit` uploads `agent/` (only that folder: no links or special files, size
-  limits, `NOTES.md` present). Then `uv run bench status` shows the queue position and, when
+  limits, `NOTES.md` present with its `Coding agent:` line) and prints the coding agent it
+  submits as. Then `uv run bench status` shows the queue position and, when
   scored, the public score with its 95% interval. Tell the person both.
 
 The public score is a rough guide (about 8 points either side at 50%). Do not chase it: the best

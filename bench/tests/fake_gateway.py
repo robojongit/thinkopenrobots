@@ -1,9 +1,10 @@
 """A small stand-in for the competition gateway, implementing the documented HTTP API closely
 enough for `bench`'s tests: device-flow login (approved through ``POST /dev/approve``, as a
 person would on github.com), submissions with the 3-per-24-hours and one-queued rules, status,
-picks, remote training runs with downloadable episode folders, and a chat endpoint that can
-pretend the shared model is waking up. The real server lives in the private ops repo; the tests
-run against it too when ``INKLING_OPS_DIR`` points at that repo.
+picks, remote training runs with downloadable episode folders, the public leaderboard (with each
+submission's coding agent, read from ``agent/NOTES.md`` by the same rule as the server), and a
+chat endpoint that can pretend the shared model is waking up. The real server lives in the
+private ops repo; the tests run against it too when ``INKLING_OPS_DIR`` points at that repo.
 """
 
 from __future__ import annotations
@@ -18,6 +19,8 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlparse
+
+from bench.coding_agent import CodingAgentProblem, parse_notes
 
 
 class State:
@@ -206,12 +209,22 @@ class FakeGateway:
                 try:
                     with tarfile.open(fileobj=io.BytesIO(gzip.decompress(body))) as tar:
                         names = {m.name for m in tar}
+                        notes_member = tar.extractfile("agent/NOTES.md")
+                        notes = notes_member.read() if notes_member else b""
+                except KeyError:
+                    return self._error(400, "invalid_archive", "agent/NOTES.md is missing")
                 except (OSError, tarfile.TarError):
                     return self._error(400, "invalid_archive", "not a tar.gz")
                 if "agent/NOTES.md" not in names:
                     return self._error(400, "invalid_archive", "agent/NOTES.md is missing")
-                state.uploads.append(body)
                 kind = "score" if path == "/v1/submissions" else "train"
+                label = None
+                if kind == "score":
+                    try:
+                        label = parse_notes(notes)
+                    except CodingAgentProblem as e:
+                        return self._error(400, "invalid_archive", e.message)
+                state.uploads.append(body)
                 mine = [j for j in state.jobs if j["account"] == account and j["kind"] == kind]
                 if kind == "score":
                     if any(j["state"] == "queued" for j in mine):
@@ -240,6 +253,8 @@ class FakeGateway:
                     "tokens_bucket": None,
                     "commit_url": None,
                 }
+                if kind == "score":
+                    job["coding_agent"] = label
                 if kind == "train":
                     plan = json.loads(query["plan"][0])
                     job.update(
@@ -267,9 +282,32 @@ class FakeGateway:
                     "source": "explicit" if picks else "default",
                 }
 
+            def _leaderboard(self) -> dict[str, Any]:
+                entries = []
+                for j in state.jobs:
+                    if j["kind"] != "score" or j["state"] != "done" or not j["commit_url"]:
+                        continue
+                    entry = {
+                        "id": j["id"],
+                        "account": j["account"],
+                        "submitted_at": j["created_at"],
+                        **{k: j[k] for k in ("score", "ci_low", "ci_high", "tokens_bucket")},
+                        "commit_url": j["commit_url"],
+                    }
+                    if j["coding_agent"]:
+                        entry["coding_agent"] = j["coding_agent"]
+                    entries.append(entry)
+                return {
+                    "schema_version": 1,
+                    "generated_at": "2026-12-01T12:00:00Z",
+                    "entries": entries,
+                }
+
             def do_GET(self) -> None:  # noqa: N802
                 path = urlparse(self.path).path
                 with state.lock:
+                    if path == "/v1/leaderboard":
+                        return self._send(200, self._leaderboard())
                     account = self._account()
                     if account is None:
                         return None
