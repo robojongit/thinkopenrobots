@@ -138,3 +138,26 @@ def test_replies_pair_with_their_entries_after_refused_calls(make_agent, tmp_pat
     ]
     assert "logprobs" in events[1]["error"] and "HTTP 400" in events[2]["error"]
     assert "budget" in events[4]["error"]
+
+
+def test_video_path_and_note_in_text_and_json(write_run, capsys):
+    run = write_run("vids", {"cube_lifting": {1: True, 2: False, 3: False}})
+    (run / "cube_lifting" / "seed_1" / "video.mp4").write_bytes(b"\0\0\0\x18ftypisom")
+    (run / "cube_lifting" / "seed_2" / "video_note.txt").write_text(
+        "no video: rendering could not start (RuntimeError: no EGL)\n"
+    )
+    view = view_run(run, limit=2)
+    one, two = view["traces"]
+    assert one["video"] == str(run / "cube_lifting" / "seed_1" / "video.mp4")
+    assert one["video_note"] is None
+    assert two["video"] is None and "no EGL" in two["video_note"]
+    assert view["not_shown"][0]["line"].endswith("ended=returned calls=3 tokens=1003")
+    code = main(["view", str(run), "--limit", "2"])
+    text = capsys.readouterr().out
+    assert code == 0 and f"video: {run / 'cube_lifting' / 'seed_1' / 'video.mp4'}" in text
+    assert "video note: no video: rendering could not start (RuntimeError: no EGL)" in text
+    code = main(["view", str(run), "--seed", "1", "--json"])
+    trace = json.loads(capsys.readouterr().out)["traces"][0]
+    assert code == 0 and trace["video"].endswith("seed_1/video.mp4")
+    (run / "cube_lifting" / "seed_3" / "video.mp4").write_bytes(b"x")
+    assert view_run(run, limit=1)["not_shown"][1]["line"].endswith("seed_3/video.mp4")
