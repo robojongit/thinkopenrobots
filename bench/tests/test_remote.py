@@ -478,3 +478,116 @@ def test_results_with_unexpected_paths_are_refused(home, tmp_path):
         tar.addfile(info, io.BytesIO(b"{}"))
     with pytest.raises(CliError, match="unexpected path"):
         remote.extract_results(other, out, {"cube_lifting": [1]})
+
+
+# --- remote videos ------------------------------------------------------------------------------
+def test_choose_videos_spreads_across_tasks_in_plan_order():
+    seeds = {"cube_lifting": [1, 2, 3], "cube_stack": [4], "spill_wipe": [5, 6]}
+    assert remote.choose_videos(seeds, 4) == {
+        "cube_lifting": [1, 2],
+        "cube_stack": [4],
+        "spill_wipe": [5],
+    }
+    assert remote.choose_videos(seeds, 99) == seeds
+    from bench.splits import train_seeds
+
+    full = train_seeds(None, remote.REMOTE_DEFAULT_SEEDS)  # 49 episodes, the default remote run
+    chosen = remote.choose_videos(full)
+    assert sum(map(len, chosen.values())) == remote.REMOTE_MAX_VIDEOS == 10
+    assert list(chosen) == list(full)  # every task once, the first three twice
+    assert [len(v) for v in chosen.values()] == [2, 2, 2, 1, 1, 1, 1]
+    assert all(v == full[t][: len(v)] for t, v in chosen.items())
+
+
+def test_train_remote_with_video(capsys, home, server, monkeypatch):
+    login(capsys, server, monkeypatch)
+    from bench.splits import train_seeds
+
+    seeds = train_seeds(None, 2)  # 14 episodes: 10 get a video
+    filmed = remote.choose_videos(seeds)
+    argv = ["train", "--remote", "--video", "--seeds", "2", "--out", "runs/v", "--json"]
+    code, out, err = run_cli(capsys, *argv)
+    assert code == 0, err
+    assert f"video for 10 of 14 episodes: {remote.episode_list(filmed)}" in err
+    report = json.loads(out)
+    run = home / "runs" / "v"
+    want = [
+        str(Path("runs/v") / t / f"seed_{s}" / "video.mp4") for t, ss in filmed.items() for s in ss
+    ]
+    assert report["videos"] == want and report["video_notes"] == []
+    for t, ss in seeds.items():
+        for s in ss:
+            assert (run / t / f"seed_{s}" / "video.mp4").is_file() == (s in filmed.get(t, []))
+    state = json.loads((run / "remote.json").read_text())
+    assert state["video"] == filmed
+    code, text, _ = run_cli(capsys, "status", state["id"])
+    assert code == 0 and f"videos: 10 ({remote.episode_list(filmed)})" in text
+    code, out, _ = run_cli(capsys, "status", state["id"], "--json")
+    assert json.loads(out)["video"] == filmed and json.loads(out)["videos"] == 10
+    first = next(iter(filmed))
+    code, out, _ = run_cli(capsys, "view", "runs/v", "--task", first, "--json")
+    traces = json.loads(out)["traces"]
+    got = {t["seed"]: t["video"] for t in traces}
+    assert got == {
+        s: str(Path("runs/v") / first / f"seed_{s}" / "video.mp4") if s in filmed[first] else None
+        for s in seeds[first]
+    }
+    # Plain text: where the files are.
+    code, out, err = run_cli(capsys, *argv[:-1])
+    assert code == 0 and "queued" not in err and f"videos (10):\n  {want[0]}" in out
+
+
+def test_train_remote_without_video_asks_for_none(capsys, home, fake, monkeypatch):
+    login(capsys, fake, monkeypatch)
+    code, out, err = run_cli(capsys, "train", "--remote", "--tasks", "cube_lifting", "--seeds", "1")
+    assert code == 0 and "video" not in err + out
+    (job,) = fake.fake.state.jobs
+    assert job["video"] == {} and job["videos"] == 0
+
+
+def test_a_server_without_videos_is_reported(capsys, home, fake, monkeypatch):
+    login(capsys, fake, monkeypatch)
+    from bench.tests import fake_gateway
+
+    monkeypatch.setattr(fake_gateway, "MAX_VIDEOS", 0)
+    code, _, err = run_cli(
+        capsys, "train", "--remote", "--video", "--tasks", "cube_lifting", "--seeds", "1"
+    )
+    assert code == ExitCode.NOT_AVAILABLE and "without --video" in err
+    assert fake.fake.state.jobs == []
+
+
+def test_videos_in_the_results_are_checked(home, tmp_path):
+    import io
+    import tarfile
+
+    from bench.exitcodes import CliError
+
+    def results(name, members):
+        path = tmp_path / name
+        with tarfile.open(path, "w:gz") as tar:
+            for member, size in members:
+                info = tarfile.TarInfo(member)
+                info.size = size
+                tar.addfile(info, io.BytesIO(b"\0" * size))
+        return path
+
+    out = tmp_path / "run"
+    out.mkdir()
+    plan, video = {"cube_lifting": [1, 2]}, {"cube_lifting": [1]}
+    ok = results(
+        "ok.tar.gz",
+        [("cube_lifting/seed_1/video.mp4", 100), ("cube_lifting/seed_2/result.json", 2)],
+    )
+    assert remote.extract_results(ok, out, plan, video) == 2
+    assert (out / "cube_lifting" / "seed_1" / "video.mp4").stat().st_size == 100
+    for members in (
+        [("cube_lifting/seed_2/video.mp4", 100)],  # not asked for
+        [("cube_lifting/seed_1/video.mp4", remote.REMOTE_VIDEO_MAX_BYTES + 1)],  # too large
+    ):
+        bad = results("bad.tar.gz", members)
+        with pytest.raises(CliError, match="unexpected video"):
+            remote.extract_results(bad, out, plan, video)
+    no_video = results("none.tar.gz", [("cube_lifting/seed_1/video.mp4", 100)])
+    with pytest.raises(CliError, match="unexpected video"):
+        remote.extract_results(no_video, out, plan)

@@ -33,11 +33,38 @@ class State:
         self.uploads: list[bytes] = []
 
 
-def episode_results(plan: dict[str, list[int]]) -> bytes:
+MAX_VIDEOS = 10
+FAKE_MP4 = b"\x00\x00\x00\x18ftypisom\x00\x00\x02\x00isomiso2" + b"\x00" * 64
+
+
+def check_video_plan(plan: Any) -> tuple[dict[str, list[int]], dict[str, list[int]]] | str:
+    """(seeds, video) from either plan shape, or the reason it is refused."""
+    if not isinstance(plan, dict) or "version" not in plan:
+        return plan, {}
+    if set(plan) != {"version", "seeds", "video"} or plan["version"] != 2:
+        return "want version 2, seeds and video"
+    seeds, video = plan["seeds"], plan["video"]
+    if not isinstance(seeds, dict) or not isinstance(video, dict):
+        return "seeds and video must be objects"
+    for task, chosen in video.items():
+        if not isinstance(chosen, list) or not chosen:
+            return f"video of {task}: want a non-empty list"
+        if any(s not in seeds.get(task, []) for s in chosen) or len(set(chosen)) != len(chosen):
+            return f"video of {task}: not planned episodes"
+    if sum(map(len, video.values())) > MAX_VIDEOS:
+        return f"a remote run records at most {MAX_VIDEOS}"
+    return seeds, video
+
+
+def episode_results(plan: dict[str, list[int]], video: dict[str, list[int]] | None = None) -> bytes:
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:
         for task, seeds in plan.items():
             for seed in seeds:
+                if seed in (video or {}).get(task, []):
+                    info = tarfile.TarInfo(f"./{task}/seed_{seed}/video.mp4")
+                    info.size = len(FAKE_MP4)
+                    tar.addfile(info, io.BytesIO(FAKE_MP4))
                 result = {
                     "task": task,
                     "success": seed % 2 == 0,
@@ -241,9 +268,15 @@ class FakeGateway:
                     "commit_url": None,
                 }
                 if kind == "train":
-                    plan = json.loads(query["plan"][0])
+                    parsed = check_video_plan(json.loads(query["plan"][0]))
+                    if isinstance(parsed, str):
+                        state.uploads.pop()
+                        return self._error(400, "bad_plan", parsed)
+                    plan, video = parsed
                     job.update(
                         plan=plan,
+                        video=video,
+                        videos=sum(map(len, video.values())),
                         episodes=sum(map(len, plan.values())),
                         results=None,
                         infra_incomplete=None,
@@ -305,7 +338,7 @@ class FakeGateway:
                             return self._send(
                                 200,
                                 None,
-                                raw=episode_results(job["plan"]),
+                                raw=episode_results(job["plan"], job["video"]),
                                 ctype="application/gzip",
                             )
                 return self._error(404, "not_found", "not found for your account")
