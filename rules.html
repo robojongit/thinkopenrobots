@@ -51,7 +51,7 @@
   <ul>
     <li><strong>Explicit final picks.</strong> In a 48-hour window before the finale, each account picks 2 submissions with <code>bench pick</code>. With no picks, its 2 most recent submissions count, never its 2 best public scores.</li>
     <li><strong>Two passes.</strong> Every pick runs once on the private test. The top 10 run twice more, and their final score is the mean of 3 runs, because model sampling is not perfectly repeatable.</li>
-    <li><strong>Ties are statistical.</strong> Entries are compared on the shared private seeds. Entries whose 95% interval overlaps the leader's share first place, and the same rule forms the later rank bands. Prizes, if any, are shared within a band.</li>
+    <li><strong>Ties are statistical.</strong> Entries are compared on the shared private seeds. Entries whose 95% interval overlaps the leader's share first place, and the same rule forms the later rank bands.</li>
     <li><strong>Code review before results.</strong> The top 10 agents are read before the reveal. Task-specific scripted solutions are disqualified.</li>
   </ul>
   <p>The ranking uses the private test only. After the finale this site shows the private scores with intervals, the rank bands and each account's chosen submissions.</p>
@@ -65,7 +65,6 @@
     <li><strong>No task-specific scripted solutions,</strong> in code or prompts. General helper code is welcome in your prompts, for the model to write into its own code.</li>
     <li><strong>No new dependencies.</strong> The agent runs in a fixed image with Python, NumPy and SciPy.</li>
     <li><strong>Edit only <code>agent/</code>.</strong> The harness, tasks and checkers are read-only.</li>
-    <li><strong>Disclose AI help.</strong> AI-assisted submissions are welcome. <code>agent/NOTES.md</code> names the model and coding agent used and gives short notes.</li>
     <li><strong>Code is open.</strong> Submissions are public commits, and anyone may build on anyone's submitted agent, including submitting it as it is. The winning <code>agent/</code> folders become the next round's starting points.</li>
     <li><strong>Exploits are disqualified.</strong> Reaching the checker, leaking test data or scripting solutions will disqualify an entry. Reporting an exploit is credited in the results.</li>
     <li><strong>Harness bugs</strong> found during the competition are fixed and announced, and affected submissions are rescored for free.</li>
