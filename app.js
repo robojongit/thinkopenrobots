@@ -58,6 +58,7 @@
   }
 
   var dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  var timeFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "UTC", hour12: false });
   var shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
   function fmtScore(n) { return n.toFixed(1) + "%"; }
   function fmtCi(lo, hi) { return lo.toFixed(1) + "–" + hi.toFixed(1); }
@@ -189,7 +190,7 @@
     assignBands(rows);
     host.appendChild(buildTable(
       showAll ? "All public submissions by public score" : "Best public submission per account by public score",
-      ["Band", "Account", "Public score (95% interval)", "Tokens per episode", "Date", "Submission"],
+      ["Band", "Account", "Public score (95% interval)", "Tokens per episode", "Time (UTC)", "Submission"],
       rows,
       function (r) {
         var d = new Date(r.t);
@@ -199,7 +200,7 @@
           { cls: "cell-account", nodes: accountNodes(r, extra) },
           { cls: "cell-score", nodes: scoreNodes(r) },
           { cls: "cell-tokens", nodes: [r.tokens ? TOKENS[r.tokens] : "–"] },
-          { cls: "cell-date", nodes: [el("time", { datetime: d.toISOString(), text: dateFmt.format(d) })] },
+          { cls: "cell-date", nodes: [el("time", { datetime: d.toISOString(), text: timeFmt.format(d) })] },
           { cls: "cell-commit", nodes: [r.url ? link(r.url, r.id || "commit", { "aria-label": "Commit " + (r.id || "") + " by " + r.account }) : "–"] }
         ];
       },
