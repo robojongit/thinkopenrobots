@@ -276,7 +276,8 @@
     var all = model.subs.concat(model.base ? [model.base] : []);
     var maxScore = Math.max.apply(null, all.map(function (e) { return e.score; }));
     var yMax = Math.min(100, Math.max(20, Math.ceil((maxScore + 5) / 10) * 10));
-    var t0 = model.subs[0].t, t1 = model.subs[model.subs.length - 1].t;
+    var timed = model.subs.length ? model.subs : [model.base];
+    var t0 = timed[0].t, t1 = timed[timed.length - 1].t;
     if (t1 - t0 < DAY) { t0 -= DAY / 2; t1 += DAY / 2; }
     var pad = (t1 - t0) * 0.03;
     t0 -= pad; t1 += pad;
@@ -284,8 +285,9 @@
     function Y(v) { return H - m.b - v / yMax * (H - m.t - m.b); }
 
     var svg = sv("svg", { viewBox: "0 0 " + width + " " + H, width: width, height: H, role: "img",
-      "aria-label": "Line chart of the best public score over time. The latest best is " + fmtScore(model.subs[model.subs.length - 1].best) +
-        (model.base ? "; the base solution scored " + fmtScore(model.base.score) : "") + ". The table above lists every value." });
+      "aria-label": "Line chart of the best public score over time. " +
+        (model.subs.length ? "The latest best is " + fmtScore(model.subs[model.subs.length - 1].best) + ". " : "No submissions yet. ") +
+        (model.base ? "The base solution scored " + fmtScore(model.base.score) + ". " : "") + "The table above lists every value." });
 
     niceTicks(yMax).forEach(function (v) {
       svg.appendChild(sv("line", { "class": v === 0 ? "axis" : "grid", x1: m.l, x2: width - m.r, y1: Y(v), y2: Y(v) }));
@@ -309,8 +311,10 @@
       d += (prev === null ? "M" : "H" + X(e.t).toFixed(1) + "V") + (prev === null ? X(e.t).toFixed(1) + " " : "") + Y(e.best).toFixed(1);
       prev = e;
     });
-    d += "H" + X(model.subs[model.subs.length - 1].t).toFixed(1);
-    svg.appendChild(sv("path", { "class": "best", d: d }));
+    if (model.subs.length) {
+      d += "H" + X(model.subs[model.subs.length - 1].t).toFixed(1);
+      svg.appendChild(sv("path", { "class": "best", d: d }));
+    }
 
     var pts = [];
     model.subs.forEach(function (e) {
@@ -318,9 +322,16 @@
       svg.appendChild(sv("circle", { "class": e.record ? "pt record" : "pt", cx: cx, cy: cy, r: 4 }));
       pts.push({ e: e, x: cx, y: cy });
     });
-    var last = model.subs[model.subs.length - 1];
-    svg.appendChild(sv("text", { "class": "lbl-best", x: Math.min(X(last.t), width - m.r), y: Y(last.best) - 10, "text-anchor": "end",
-      text: "Best " + fmtScore(last.best) }));
+    if (model.subs.length) {
+      var last = model.subs[model.subs.length - 1];
+      svg.appendChild(sv("text", { "class": "lbl-best", x: Math.min(X(last.t), width - m.r), y: Y(last.best) - 10, "text-anchor": "end",
+        text: "Best " + fmtScore(last.best) }));
+    } else if (model.base) {
+      /* only the base solution so far: show it as a point, so the chart is never empty */
+      var bx = X(model.base.t), bcy = Y(model.base.score);
+      svg.appendChild(sv("circle", { "class": "pt", cx: bx, cy: bcy, r: 4 }));
+      pts.push({ e: model.base, x: bx, y: bcy });
+    }
 
     var hot = sv("circle", { "class": "hot", r: 7, visibility: "hidden" });
     svg.appendChild(hot);
@@ -337,7 +348,7 @@
       if (!near) { hide(); return; }
       hot.setAttribute("cx", near.x); hot.setAttribute("cy", near.y); hot.setAttribute("visibility", "visible");
       var e = near.e;
-      tip.textContent = e.account + ": " + fmtScore(e.score) + " (" + fmtCi(e.lo, e.hi) + "), " + dateFmt.format(new Date(e.t));
+      tip.textContent = (e.isBase ? "Base solution" : e.account) + ": " + fmtScore(e.score) + " (" + fmtCi(e.lo, e.hi) + "), " + timeFmt.format(new Date(e.t)) + " UTC";
       tip.hidden = false;
       var tx = Math.min(Math.max(near.x, 100), width - 100);
       tip.style.left = tx + "px"; tip.style.top = (near.y - 12) + "px";
@@ -355,7 +366,7 @@
     var section = $("progress");
     var host = $("chart-host");
     var model = chartModel(entries);
-    if (!model.subs.length) { section.hidden = true; return; }
+    if (!model.subs.length && !model.base) { section.hidden = true; return; }
     section.hidden = false;
     var lastW = 0;
     function draw() {
