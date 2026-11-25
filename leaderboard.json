@@ -1,6 +1,6 @@
 {
  "schema_version": 1,
- "generated_at": "2026-11-25T15:21:05Z",
+ "generated_at": "2026-11-25T16:14:47Z",
  "entries": [
   {
    "id": "s0001",
@@ -11,7 +11,8 @@
    "ci_high": 48.24,
    "tokens_bucket": "lt10k",
    "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/648e8f735eb26cfa5043e1c0a8b4a94b32265270",
-   "is_base": true
+   "is_base": true,
+   "coding_agent": "reference harness (Claude Code port)"
   }
  ]
 }
