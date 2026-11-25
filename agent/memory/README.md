@@ -26,3 +26,12 @@ the model to write into its own code); no task-specific scripted solutions; no n
 One entry per attempt: date, what changed, runs compared, result, kept or reverted.
 
 <!-- 2026-01-01 · shorter system prompt · runs/A vs runs/B · +0.03 (-0.02 to +0.08) · reverted -->
+
+All runs below are remote (`bench train --remote`, default 7 training seeds x 7 tasks = 49 episodes).
+Baseline `runs/base-r7`: 0.452 on 48/49 (1 episode crashed on the shared box: git shallow.lock).
+
+- 2026-11-25 · a1: closed loop (run, feed back stdout/stderr + observe(), DONE or continue; re-ask
+  when no code; general system prompt; first call 14k tokens, follow-ups 9k, max 4 runs) ·
+  runs/base-r7 vs runs/a1-loop · +0.122 (+0.014 to +0.228), 48 pairs, weak evidence · kept.
+  cube_restack 0/7 -> 6/7; nut_assembly 2/7 -> 0/7 (model spent its 4 runs on inspection-only
+  programs); two_arm_handover still 0/7 (calls hit the token cap with no code, ~140 s each).

@@ -1,86 +1,183 @@
-"""The base solution: CaP-X's vanilla harness, ported unchanged into ``solve()``.
+"""Closed-loop agent: write code, run it, show the model what happened, let it fix or finish.
 
-This reproduces what CaP-X's ``capx/envs/launch.py`` does for the 7 RoboSuite privileged configs
-(``env_configs/<task>/*_privileged.yaml``). Paths below are in the CaP-X fork at
-``harness/capx``.
+General, task-agnostic. Everything that moves the robot is code the model wrote in this episode;
+this file only builds prompts, extracts code, reads state (``robot.observe()``) and decides
+when to stop.
 
-What CaP-X does per trial for these configs:
-
-1. One model call. The prompt is a system message and one user message whose text is
-   ``f"{task_prompt}\\nAPIs:\\n" + "\\n".join(docs)`` (``capx/envs/tasks/base.py:115-121`` and
-   ``:139-151``); ``task.instruction`` is that ``task_prompt`` and ``task.api_docs`` that joined
-   ``docs``. No in-context examples beyond what the task prompt and the API docstrings contain.
-   The query goes through ``_query_initial_code`` (``capx/envs/trial.py:469-498``, no ensemble)
-   with ``temperature=1.0`` and ``max_tokens=2048 * 10`` (``capx/envs/launch.py:55-59``), sent
-   as ``{model, temperature, max_tokens, messages}`` for a model not in CaP-X's named lists
-   (``capx/llm/client.py:232-238``).
-2. Code extraction with ``_extract_code`` (``capx/utils/launch_utils.py:165-189``): the text
-   after the first "```python\\n" and before the last "```", stripped; with no fences, the whole
-   reply. It always returns exactly one block.
-3. One execution of that block (``capx/envs/trial.py:780-787``), then the trial ends. The
-   multi-turn branch (``capx/envs/trial.py:804``) only runs when the YAML config sets
-   ``multi_turn_prompt`` (read at ``capx/envs/runner.py:179`` and ``:259``); none of the 7
-   privileged configs does, so nothing (stdout, stderr, errors) is ever fed back to the model.
-
-Deviations, all forced by the leaderboard runner:
-
-- The code runs through ``robot.run`` in a fresh process that has only the task's API functions
-  in scope. CaP-X's exec namespace also held ``env``, ``APIS``, ``obs``, ``INPUTS`` and
-  ``RESULT`` (``capx/envs/tasks/base.py:153-162``, ``:187-205``); the vanilla prompts never
-  mention them, but model code that uses them fails here with a NameError. Persisting variables
-  between blocks does not matter: there is only one block.
-- A blank extracted block is not sent to ``robot.run`` (which refuses blank code); CaP-X would
-  exec the empty string, which does nothing either.
-- Model-server errors are not retried here. CaP-X retries 404/5xx answers every ~4 minutes
-  (``capx/llm/client.py:246-258``) and reruns a whole trial on a 1000 s timeout
-  (``capx/envs/runner.py:39-40``, ``:195-232``); here ``llm.chat`` raises, the episode ends,
-  and ``bench train`` reruns episodes that failed because of the model server.
+Loop:
+1. One call with the task, the API docs, the current robot state and general guidance
+   (keep thinking short, one fenced Python block, print what you measure, verify with reads).
+2. Run the code. If the reply had no code (for example the model spent all its tokens
+   thinking), ask again, insisting on a short plan and code.
+3. Feed back stdout, stderr and the new robot state. The model either answers DONE or writes a
+   new program that continues from the current state (the scene is not reset).
+4. Stop on DONE, on budget, or when too little wall-clock time is left for another run.
 """
 
 from __future__ import annotations
 
-from inkling_robo import LLM, Robot, Task
+import json
+import time
 
-# capx/envs/tasks/base.py:115-117
-SYSTEM_PROMPT = "You are a helpful assistant that generates Python code to directly solve the task."
-# capx/envs/launch.py:55-59 (LaunchArgs defaults; the privileged configs do not override them)
-TEMPERATURE = 1.0
-MAX_TOKENS = 2048 * 10
+from inkling_robo import LLM, BudgetExceeded, InklingError, Robot, Task
+
+TEMPERATURE = 0.7
+FIRST_MAX_TOKENS = 14000
+FOLLOW_MAX_TOKENS = 9000
+WALL_LIMIT_S = 400.0
+# Do not start another model call + run after this many seconds; an episode still running at
+# the wall-clock limit fails even if the task was done.
+LAST_CALL_AT_S = 240.0
+MAX_ROUNDS = 4
+OUT_TAIL = 3500
+ERR_TAIL = 2000
+
+SYSTEM_PROMPT = """You control a simulated robot by writing Python programs against the API below.
+The API functions are already defined in the program's global scope (do not import them); import numpy/scipy yourself if needed. Only the standard library, numpy and scipy are available.
+
+How to answer:
+- Think briefly: a short plan of the steps and the key numbers, not a long deliberation. Do not try to settle every detail in your head; print values and check them in the code instead.
+- Then reply with exactly ONE fenced code block: ```python ... ``` containing a complete program. No other code blocks.
+- The program must print what it measures: positions read before and after each important step (e.g. object positions after grasping/lifting/placing), so the result can be verified. Print numbers rounded to 3 decimals.
+- Use the read functions to check progress inside the program (e.g. after a grasp and lift, check that the object actually rose; after placing, check where it ended).
+
+General robot facts:
+- Positions are in meters, quaternions are (w, x, y, z). Read the docstrings for which frame and which point of an object a function returns.
+- Approach grasp/place targets from above (use z_approach where available) and keep moves between waypoints clear of other objects: lift up before travelling sideways.
+- To put an object on another one, compute the target height from positions and extents (sizes) of both objects; lower it close to resting contact before opening the gripper, never drop it from a height.
+- Before moving an object, check whether something else is on top of it or in the way, using the positions you read.
+- An arm/gripper motion function that raises an error (e.g. no IK solution) means the target pose is unreachable: pick a nearby pose or a different orientation.
+- Keep programs efficient: a few waypoints, no long loops or sleeps. Time is limited.
+"""
+
+FEEDBACK_PROMPT = """The program ran. The scene was NOT reset: the robot and objects are where the program left them.
+ok={ok}
+stdout (tail):
+{stdout}
+stderr (tail):
+{stderr}
+Robot state now (observe()):
+{state}
+
+Check against the goal, using the printed values. If the goal is fully achieved and the final state satisfies it, reply with just the word DONE (no code).
+Otherwise think briefly about what went wrong, then reply with ONE fenced ```python block with a new complete program that continues from the current state and finishes the task (API functions are in scope again; re-import numpy; re-read poses, do not assume earlier variables exist)."""
+
+NO_CODE_PROMPT = """Your reply contained no code (you may have run out of tokens while thinking). Do not deliberate long: write a short plan of 3-6 lines, then ONE fenced ```python block with the complete program."""
 
 
-def build_messages(instruction: str, api_docs: str) -> list[dict]:
-    """CaP-X's ``_full_prompt`` (``capx/envs/tasks/base.py:118-121``, ``:139-151``)."""
-    complete_prompt = f"{instruction}\nAPIs:\n{api_docs}"
-    return [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": [{"type": "text", "text": complete_prompt}]},
-    ]
+def _fmt(value, nd: int = 3):
+    if isinstance(value, float):
+        return round(value, nd)
+    if isinstance(value, (list, tuple)):
+        return [_fmt(v, nd) for v in value]
+    if isinstance(value, dict):
+        return {k: _fmt(v, nd) for k, v in value.items()}
+    try:  # numpy arrays or scalars, if any come through
+        return _fmt(value.tolist(), nd)
+    except AttributeError:
+        return value
 
 
-def extract_code(content: str) -> list[str]:
-    """CaP-X's ``_extract_code`` (``capx/utils/launch_utils.py:165-189``), unchanged.
+def robot_state(robot: Robot) -> str:
+    try:
+        return json.dumps(_fmt(robot.observe()))
+    except Exception as e:  # noqa: BLE001 - state is only informative
+        return f"(unavailable: {type(e).__name__})"
 
-    The result is a substring of ``content``, so ``robot.run`` accepts it.
-    """
-    fence_start = "```python\n"
-    fence_end = "```"
-    if fence_start in content:
-        content = content[content.find(fence_start) + len(fence_start) :]
-    if fence_end in content:
-        content = content[: content.rfind(fence_end)]
-    return [str(content).strip()]
+
+def extract_code(content: str) -> str:
+    """The last fenced python block (or any fenced block); else bare code; else ''."""
+    text = str(content)
+    for fence in ("```python\n", "```py\n", "```Python\n", "```\n"):
+        start = text.rfind(fence)
+        if start != -1:
+            body = text[start + len(fence) :]
+            end = body.find("```")
+            if end != -1:
+                body = body[:end]
+            return body.strip()
+    stripped = text.strip()
+    if stripped.upper().startswith("DONE"):
+        return ""
+    # Bare code: accept only if it looks like code.
+    if any(k in stripped for k in ("(", "import ", "=")) and "\n" in stripped:
+        return stripped
+    return ""
+
+
+def is_done(content: str) -> bool:
+    text = str(content).strip()
+    return "```" not in text and text.upper().rstrip(".!").endswith("DONE")
+
+
+def tail(text: str, n: int) -> str:
+    text = (text or "").strip()
+    return text if len(text) <= n else "...\n" + text[-n:]
 
 
 def solve(task: Task, robot: Robot, llm: LLM) -> None:
-    messages = build_messages(task.instruction, task.api_docs)
-    reply = llm.chat(messages, temperature=TEMPERATURE, max_tokens=MAX_TOKENS)
-    print(
-        f"reply: finish_reason={reply.finish_reason} prompt_tokens={reply.prompt_tokens} "
-        f"completion_tokens={reply.completion_tokens}"
+    t0 = time.monotonic()
+
+    def elapsed() -> float:
+        return time.monotonic() - t0
+
+    user = (
+        f"{task.instruction}\nAPIs:\n{task.api_docs}\n\n"
+        f"Robot state now (observe()):\n{robot_state(robot)}"
     )
-    for index, code in enumerate(extract_code(reply)):
+    messages: list[dict] = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user},
+    ]
+    max_tokens = FIRST_MAX_TOKENS
+    runs = 0
+    for round_no in range(MAX_ROUNDS + 2):
+        if round_no > 0 and elapsed() > LAST_CALL_AT_S:
+            print(f"stop: {elapsed():.0f}s elapsed")
+            return
+        try:
+            reply = llm.chat(messages, temperature=TEMPERATURE, max_tokens=max_tokens)
+        except BudgetExceeded:
+            print("stop: budget exceeded")
+            return
+        except InklingError as e:
+            print(f"stop: model error {e.code}")
+            return
+        print(
+            f"call {round_no}: t={elapsed():.0f}s finish={reply.finish_reason} "
+            f"prompt={reply.prompt_tokens} completion={reply.completion_tokens} "
+            f"reasoning_chars={len(reply.reasoning or '')} content_chars={len(reply)}"
+        )
+        if runs > 0 and is_done(reply):
+            print("model says DONE")
+            return
+        code = extract_code(reply)
+        messages.append({"role": "assistant", "content": str(reply) or "(no answer)"})
         if not code:
-            print(f"code block {index}: empty, nothing to run")
+            messages.append({"role": "user", "content": NO_CODE_PROMPT})
+            max_tokens = FOLLOW_MAX_TOKENS
             continue
-        result = robot.run(code)
-        print(f"code block {index}: ok={result.ok}")
+        if runs >= MAX_ROUNDS:
+            return
+        try:
+            result = robot.run(code)
+        except InklingError as e:
+            print(f"run error: {e.code}")
+            return
+        runs += 1
+        print(f"run {runs}: ok={result.ok} t={elapsed():.0f}s")
+        if elapsed() > LAST_CALL_AT_S:
+            print(f"stop: {elapsed():.0f}s elapsed")
+            return
+        messages.append(
+            {
+                "role": "user",
+                "content": FEEDBACK_PROMPT.format(
+                    ok=result.ok,
+                    stdout=tail(result.stdout, OUT_TAIL) or "(empty)",
+                    stderr=tail(result.stderr, ERR_TAIL) or "(empty)",
+                    state=robot_state(robot),
+                ),
+            }
+        )
+        max_tokens = FOLLOW_MAX_TOKENS
