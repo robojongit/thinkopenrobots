@@ -58,7 +58,6 @@
   }
 
   var dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
-  var dateTimeFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC", hour12: false });
   var shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
   function fmtScore(n) { return n.toFixed(1) + "%"; }
   function fmtCi(lo, hi) { return lo.toFixed(1) + "–" + hi.toFixed(1); }
@@ -442,7 +441,6 @@
     showAll.onchange = function () { renderStandings(data, showAll.checked); };
     renderFinal(data.final);
     renderChart(data.entries);
-    $("updated").textContent = data.generated ? "Updated " + dateTimeFmt.format(new Date(data.generated)) + " UTC." : "";
     setStatus(sample ? "notice" : null, sample ? "Showing sample data, not real results." : "");
   }
 
