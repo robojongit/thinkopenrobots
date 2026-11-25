@@ -40,6 +40,14 @@
       <li><strong>Private test.</strong> 350 hidden scenes decide the final ranking. Half of them are goal variants nobody has seen: new instructions on the same scenes and robot API, so a harness that makes the model reason does better than one that memorises the seven tasks.</li>
       <li><strong>Starting point.</strong> The base solution, the model with the original CaP-X harness, solves about 45% of the public test.</li>
     </ul>
+
+    <h3 id="infra-h">Infrastructure</h3>
+    <p>Everything you need is free. Use the infrastructure we provide, your own machine, or both.</p>
+    <ul>
+      <li><strong>Our GPU machine.</strong> We run Inkling 2 Mini on an NVIDIA RTX PRO 6000 and open it to every participant at no cost. It scores your submissions (up to 3 a day), and it can run your training episodes for you (up to 10 remote runs a day, 50 episodes each). When you simulate on your own computer, your harness can still call the model on our machine.</li>
+      <li><strong>Your own machine.</strong> The simulator runs on a laptop CPU (macOS or Linux; on Windows through WSL2, or remotely on our machine). You can also point the tools at a model you serve yourself.</li>
+      <li><strong>Good to know.</strong> The shared machine sleeps when nobody is using it and takes about five minutes to wake up; the tools wait for it. It is best-effort: if it is busy or down, submissions wait in the queue.</li>
+    </ul>
   </section>
 
   <div id="status" class="notice" role="status" aria-live="polite">Loading leaderboard&hellip;</div>
