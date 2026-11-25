@@ -16,7 +16,7 @@ from harness.tasks import TASKS
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = {name: (ROOT / name).read_text() for name in ("AGENTS.md", "README.md")}
-RULES = (ROOT / "site" / "rules.html").read_text()
+RULES = (ROOT / "RULES.md").read_text()
 
 # Organiser-only details that must not appear in public docs.
 DENYLIST = [
@@ -156,7 +156,7 @@ def test_no_internal_words(name):
             f"{name}: {pattern}"
         )
     for pattern in DENYLIST:
-        assert not re.search(pattern, RULES), f"rules.html: {pattern}"
+        assert not re.search(pattern, RULES), f"RULES.md: {pattern}"
 
 
 def count_budget_numbers(text: str) -> int:
@@ -164,9 +164,9 @@ def count_budget_numbers(text: str) -> int:
     return len(re.findall(rf"{tokens // 1000}k|{tokens:,}|{tokens}", text))
 
 
-@pytest.mark.parametrize("name", ["AGENTS.md", "README.md", "rules.html"])
+@pytest.mark.parametrize("name", ["AGENTS.md", "README.md", "RULES.md"])
 def test_docs_state_the_budget_defaults(name):
-    text = RULES if name == "rules.html" else DOCS[name]
+    text = RULES if name == "RULES.md" else DOCS[name]
     default = Budget()
     assert count_budget_numbers(text) == 1, name
     assert re.search(rf"\b{default.calls} (model )?calls\b", text), name
@@ -175,8 +175,9 @@ def test_docs_state_the_budget_defaults(name):
 
 def test_rules_guide_is_filled():
     assert "placeholder" not in RULES and "To be written" not in RULES
-    for guide in ("measure", "failures", "changes", "compare", "pitfalls"):
-        assert f'id="guide-{guide}"' in RULES
+    guide = RULES.split("## How to beat the base solution")[1]
+    steps = re.findall(r"^### (\d)\. ", guide, re.M)
+    assert steps == ["1", "2", "3", "4", "5"]
 
 
 @pytest.mark.parametrize("name", DOCS)
@@ -186,8 +187,8 @@ def test_python_examples_parse(name):
 
 
 def test_docs_state_the_coding_agent_line():
-    assert (
-        "coding agent that built it, in <code>agent/NOTES.md</code>; it is shown on the " in RULES
+    assert "coding agent that built it, in `agent/NOTES.md`; it is shown on the " in " ".join(
+        RULES.split()
     )
     for name, text in DOCS.items():
         assert "Disclose AI help" not in text, name

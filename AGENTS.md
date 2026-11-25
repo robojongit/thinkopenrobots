@@ -20,9 +20,8 @@ better code more often.
    scope, and accepts only code that is an exact substring of the content of a model reply from
    this episode (it raises `RunRefused` otherwise). General helper code is welcome in your
    prompts, for the model to write into its own code. No task-specific scripted solutions in
-   code or prompts (a recipe for one task is one). The rules page (`site/rules.html`, or the
-   Rules page of the leaderboard site) has the full rules. When unsure, ask the person; do not
-   probe for loopholes.
+   code or prompts (a recipe for one task is one). `RULES.md` has the full rules. When unsure,
+   ask the person; do not probe for loopholes.
 3. **Held-out goal variants exist.** Half of the private test is new instructions on the same
    scenes and API. Read `task.instruction` and `task.api_docs` at run time. Do not hard-code
    object names, colours, targets or numbers that belong to one task.

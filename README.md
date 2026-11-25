@@ -124,7 +124,7 @@ def solve(task: Task, robot: Robot, llm: LLM) -> None:
 
 ## Rules
 
-The full rules are on the [rules page](site/rules.html) of the site. In short:
+The full rules are in [`RULES.md`](RULES.md). In short:
 
 - Edit only `agent/`. The harness, tasks and checkers are read-only. No new dependencies.
 - Anything that moves the robot must come from code the model wrote during the episode:

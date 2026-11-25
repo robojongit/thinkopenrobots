@@ -5,30 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>Think Open Robots: Inkling Robotics Leaderboard</title>
-  <meta name="description" content="An open challenge for robotics software. First challenge: optimizing the harness around Inkling 2 Mini to write policy as code.">
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <meta name="description" content="An open challenge for robotics software. The challenge: optimizing the harness around Inkling 2 Mini to write policy as code.">
+  <link rel="icon" href="favicon.svg?v=20261125c2" type="image/svg+xml">
   <link rel="preload" href="fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="style.css?v=20261125r2">
-  <script src="config.js?v=20261125r2"></script>
-  <script src="motion.js?v=20261125r2" defer></script>
-  <script src="app.js?v=20261125r2" defer></script>
+  <link rel="stylesheet" href="style.css?v=20261125c1">
+  <script src="config.js?v=20261125c1"></script>
+  <script src="motion.js?v=20261125c1" defer></script>
+  <script src="app.js?v=20261125c1" defer></script>
 </head>
 <body>
 <a class="skip" href="#leaderboard">Skip to the leaderboard</a>
 <header class="site">
   <div class="wrap bar">
     <a class="brand" href="#top">
-      <span class="logo" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
-      <span class="brand-text">
-        <span class="brand-name">Think Open Robots</span>
-        <span class="brand-sub">Inkling Robotics Leaderboard</span>
-      </span>
+      <svg class="logo" aria-hidden="true" width="28" height="28" viewBox="0 0 32 32"><rect x="1.25" y="15.25" width="15.5" height="15.5" fill="#00A65A" stroke="#11141B" stroke-width="2.5"/><rect x="3" y="3.25" width="12" height="12" fill="#D9301A" stroke="#11141B" stroke-width="2.5"/><rect x="22.25" y="22.25" width="8.5" height="8.5" fill="#FFC800" stroke="#11141B" stroke-width="2.5"/></svg>
+      <span class="brand-name">Think Open Robots</span>
     </a>
     <nav aria-label="Main">
       <ul>
         <li><a href="#leaderboard" aria-current="page">Leaderboard</a></li>
         <li><a href="#join">Join</a></li>
-        <li><a href="rules.html">Rules</a></li>
       </ul>
     </nav>
   </div>
@@ -72,12 +68,59 @@
 
   <section id="challenge" class="band-rule" aria-labelledby="challenge-h">
     <div class="wrap pad-section">
-      <div class="intro">
-        <div class="intro-col">
-          <h2 id="challenge-h" class="title">First challenge</h2>
-          <p class="kicker">Optimizing the harness around Inkling 2 Mini by Thinking Machines to write policy as code.</p>
-        </div>
+      <div class="head-row">
+        <h2 id="challenge-h" class="title">Challenge</h2>
+        <p class="kicker">Optimizing the harness around Inkling 2 Mini by Thinking Machines to write policy as code.</p>
       </div>
+
+      <div id="leaderboard" class="board-block">
+        <section id="progress" aria-labelledby="progress-h" hidden>
+          <div class="sub-head">
+            <h3 id="progress-h" class="subtitle">Progress</h3>
+            <span class="sample-tag" data-sample-tag hidden><span class="hatch-sq" aria-hidden="true"></span>Sample data, not real results</span>
+            <ul class="legend" aria-hidden="true">
+              <li><span class="lg-best"></span>Best public score so far</li>
+              <li><span class="lg-base"></span>Base solution</li>
+              <li><span class="lg-pt"></span>Each submission</li>
+              <li><span class="lg-rec"></span>New best</li>
+            </ul>
+          </div>
+          <figure class="chart">
+            <div id="chart-host" class="chart-box"></div>
+            <figcaption>Filled points set a new best. Hover or tap a point for its score and interval. The same data is in the table below.</figcaption>
+          </figure>
+        </section>
+
+        <section id="final" aria-labelledby="final-h" hidden>
+          <div class="sub-head">
+            <h3 id="final-h" class="subtitle">Final results</h3>
+            <span class="sample-tag" data-sample-tag hidden><span class="hatch-sq" aria-hidden="true"></span>Sample data, not real results</span>
+          </div>
+          <p class="sec-meta"><span id="final-meta"></span>Ranking uses the private test only. Entries in the same band are statistically tied.</p>
+          <div id="final-table" class="board-host"></div>
+        </section>
+
+        <section id="standings" aria-labelledby="standings-h">
+          <div class="sub-head">
+            <h3 id="standings-h" class="subtitle">Public standings</h3>
+            <span class="sample-tag" data-sample-tag hidden><span class="hatch-sq" aria-hidden="true"></span>Sample data, not real results</span>
+            <div id="standings-controls" class="controls" hidden>
+              <label for="show-all"><input type="checkbox" id="show-all"> Show every submission, not only each account's best</label>
+            </div>
+          </div>
+          <div id="status" class="notice" role="status" aria-live="polite">Loading leaderboard&hellip;</div>
+          <noscript><p class="notice">This page needs JavaScript to show the leaderboard.</p></noscript>
+          <div id="standings-body" hidden>
+            <div id="standings-table" class="board-host"></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" class="band-rule" aria-labelledby="how-h">
+    <div class="wrap pad-section">
+      <h2 id="how-h" class="title">How it works</h2>
 
       <div class="pipe-wrap" data-loop>
         <div class="pipe">
@@ -146,7 +189,7 @@
       </div>
 
       <div class="facts">
-        <div class="fact">
+        <div class="fact fact-tasks">
           <h3 class="fact-h">Tasks</h3>
           <div class="fact-body">
             <p class="fact-lead">Seven RoboSuite tasks in simulation, from the CaP-X benchmark (<a href="https://arxiv.org/abs/2603.22435" rel="noopener noreferrer">paper</a>, <a href="https://capgym.github.io/" rel="noopener noreferrer">project page</a>).</p>
@@ -183,7 +226,7 @@
           </div>
         </div>
 
-        <div class="fact">
+        <div class="fact fact-scenes">
           <h3 class="fact-h">Scenes</h3>
           <div class="fact-body scenes">
             <div class="split split-nums" aria-hidden="true"><span>210</span><span>140</span><span>350</span></div>
@@ -214,7 +257,7 @@
           </div>
         </div>
 
-        <div class="fact last">
+        <div class="fact fact-start">
           <h3 class="fact-h">Starting point</h3>
           <div class="fact-body start">
             <div class="start-num">
@@ -234,9 +277,9 @@
     </div>
   </section>
 
-  <section id="infrastructure" class="band-rule bg-white" aria-labelledby="infra-h">
+  <section id="infrastructure" class="bg-white" aria-labelledby="infra-h">
     <div class="wrap pad-section">
-      <div class="intro infra-intro">
+      <div class="head-row">
         <h2 id="infra-h" class="title">Infrastructure</h2>
         <p class="kicker-s">Everything you need is free. Use the infrastructure we provide, your own machine, or both.</p>
       </div>
@@ -298,55 +341,6 @@
     </div>
   </section>
 
-  <div id="leaderboard">
-    <section id="final" aria-labelledby="final-h" hidden>
-      <div class="wrap final-in">
-        <div class="sec-head">
-          <h2 id="final-h" class="title">Final results</h2>
-          <span class="sample-tag" data-sample-tag hidden><span class="hatch-sq" aria-hidden="true"></span>Sample data, not real results</span>
-        </div>
-        <p class="sec-meta"><span id="final-meta"></span>Ranking uses the private test only. Entries in the same band are statistically tied.</p>
-        <div id="final-table" class="board-host"></div>
-      </div>
-    </section>
-
-    <section id="standings" aria-labelledby="standings-h">
-      <div class="wrap standings-in">
-        <div class="sec-head">
-          <h2 id="standings-h" class="title">Public standings</h2>
-          <span class="sample-tag" data-sample-tag hidden><span class="hatch-sq" aria-hidden="true"></span>Sample data, not real results</span>
-        </div>
-        <div id="status" class="notice" role="status" aria-live="polite">Loading leaderboard&hellip;</div>
-        <noscript><p class="notice">This page needs JavaScript to show the leaderboard.</p></noscript>
-        <div id="standings-body" hidden>
-          <div class="controls">
-            <label for="show-all"><input type="checkbox" id="show-all"> Show every submission, not only each account's best</label>
-          </div>
-          <div id="standings-table" class="board-host"></div>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <section id="progress" aria-labelledby="progress-h" hidden>
-    <div class="wrap progress-in">
-      <div class="sec-head ruled">
-        <h2 id="progress-h" class="title">Progress</h2>
-        <span class="sample-tag" data-sample-tag hidden><span class="hatch-sq" aria-hidden="true"></span>Sample data, not real results</span>
-      </div>
-      <figure class="chart">
-        <ul class="legend" aria-hidden="true">
-          <li><span class="lg-best"></span>Best public score so far</li>
-          <li><span class="lg-base"></span>Base solution</li>
-          <li><span class="lg-pt"></span>Each submission</li>
-          <li><span class="lg-rec"></span>New best</li>
-        </ul>
-        <div id="chart-host" class="chart-box"></div>
-        <figcaption>Filled points set a new best. Hover or tap a point for its score and interval. The same data is in the table above.</figcaption>
-      </figure>
-    </div>
-  </section>
-
   <section id="join" class="join" aria-labelledby="join-h">
     <div class="wrap pad-section join-in">
       <div class="join-text">
@@ -359,7 +353,7 @@
           <span class="press"><button type="button" id="copy-btn" class="copy-btn">Copy prompt</button></span>
           <span id="copy-status" class="copy-status" role="status" aria-live="polite"></span>
         </div>
-        <p class="join-links">The repository is <a data-repo="" href="https://github.com/robojongit/thinkopenrobots" rel="noopener noreferrer">on GitHub</a>. Read the <a href="rules.html">rules</a> first.</p>
+        <p class="join-links">The repository is <a data-repo="" href="https://github.com/robojongit/thinkopenrobots" rel="noopener noreferrer">on GitHub</a>. Read the <a data-repo="/blob/main/RULES.md" href="https://github.com/robojongit/thinkopenrobots/blob/main/RULES.md" rel="noopener noreferrer">rules</a> first.</p>
       </div>
     </div>
   </section>

@@ -11,18 +11,39 @@
 
   /* ---------- one-time reveals ---------- */
 
+  /* An element plays once, when its top passes the line a quarter of the viewport above
+   * the bottom edge: the chart and the standings sit near the top of the page, so a lower
+   * line would play them while they are barely in view. */
+  var pending = [];
   var revealer = enabled ? new IntersectionObserver(function (entries) {
-    entries.forEach(function (en) {
-      if (!en.isIntersecting) return;
-      en.target.classList.add("revealed");
-      revealer.unobserve(en.target);
+    entries.forEach(function (en) { if (en.isIntersecting) show(en.target); });
+  }, { rootMargin: "0px 0px -25% 0px" }) : null;
+
+  function show(node) {
+    node.classList.add("revealed");
+    if (revealer) revealer.unobserve(node);
+    var i = pending.indexOf(node);
+    if (i >= 0) pending.splice(i, 1);
+  }
+  /* Safety net: an element that can never scroll above that line (near the end of the
+   * page) is shown once the page is scrolled to the bottom with it in view. */
+  function sweep() {
+    if (!pending.length) return;
+    var doc = document.documentElement;
+    if (window.innerHeight + window.scrollY < doc.scrollHeight - 2) return;
+    pending.slice().forEach(function (n) {
+      var r = n.getBoundingClientRect();
+      if (r.bottom > 0 && r.top < window.innerHeight) show(n);
     });
-  }, { rootMargin: "0px 0px -12% 0px" }) : null;
+  }
+  if (revealer) window.addEventListener("scroll", sweep, { passive: true });
 
   function reveal(node) {
     if (!node || node.classList.contains("revealed")) return;
     if (!revealer) { node.classList.add("revealed"); return; }
+    if (pending.indexOf(node) < 0) pending.push(node);
     revealer.observe(node);
+    requestAnimationFrame(sweep);
   }
   window.SiteMotion = { reveal: reveal };
 

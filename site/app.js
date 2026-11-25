@@ -402,7 +402,7 @@
     host.setAttribute("role", "group");
     host.setAttribute("aria-label", "Chart of the best public score over time. " +
       (last ? "The latest best is " + fmtScore(last.best) + ". " : "No submissions yet. ") +
-      (model.base ? "The base solution scored " + fmtScore(model.base.score) + ". " : "") + "The table above lists every value.");
+      (model.base ? "The base solution scored " + fmtScore(model.base.score) + ". " : "") + "The table below lists every value.");
 
     var plot = el("div", { "class": "plot" });
     var deco = el("div", { "aria-hidden": "true" });
@@ -593,6 +593,7 @@
   }
   function hideData() {
     $("standings-body").hidden = true;
+    $("standings-controls").hidden = true;
     $("progress").hidden = true;
     $("final").hidden = true;
   }
@@ -600,6 +601,7 @@
   function showData(data, sample) {
     var showAll = $("show-all");
     $("standings-body").hidden = false;
+    $("standings-controls").hidden = false;
     renderStandings(data, showAll.checked);
     showAll.onchange = function () { renderStandings(data, showAll.checked); };
     renderFinal(data.final);

@@ -7,7 +7,7 @@ import pytest
 
 SITE = Path(__file__).resolve().parent.parent
 SCRIPTS = ["app.js", "motion.js"]
-PAGES = ["index.html", "rules.html"]
+PAGES = ["index.html"]
 
 
 @pytest.mark.parametrize("name", SCRIPTS)
