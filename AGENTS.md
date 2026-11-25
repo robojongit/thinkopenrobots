@@ -163,6 +163,20 @@ Name runs (`--out runs/<n>-<what>`) so they can be compared later. Change one th
 After each kept change tell the person the old and new score in one line. If three attempts in a
 row show no gain, say so and ask whether to continue.
 
+**Videos.** You read traces; a video is for the person. When a failure is easier to see than to
+read (the arm misses, knocks something over, stops short), offer them a video of that one
+episode rather than recording a whole run. Rerun just it, locally with
+`uv run bench train --video --tasks <task> --seed-list <seed> --out runs/<n>-video`, or the same
+plus `--remote` on the shared box (the only way on native Windows; training seeds only). The
+file is `video.mp4` in the episode folder, `runs/<n>-video/<task>/seed_<seed>/`; `bench view`
+prints its path. Model sampling is seeded per episode, so a rerun usually replays the failure,
+but check that the video shows what you read. Video is slow: about 4x per episode locally, and
+the wall-clock limit still applies, so a slow episode can run out of time only because it was
+recorded. Never use runs with `--video` for scores or `compare`. A remote run records at most 10
+episodes, spread across tasks; the command says which before it starts and lists the files at
+the end, and an episode left without one has a `video_note.txt` saying why. Submissions never
+return videos or logs, only the score.
+
 ## 5. Submit
 
 Submit only a version that wins on the full training split by `bench compare` against the
