@@ -3,21 +3,29 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
+  <meta name="color-scheme" content="light">
   <title>Rules - Inkling Robotics Leaderboard</title>
   <meta name="description" content="How the competition works, how entries are scored and ranked, and what is allowed.">
-  <link rel="stylesheet" href="style.css?v=20261125d">
-  <script src="config.js?v=20261125d"></script>
-  <script src="app.js?v=20261125d" defer></script>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css?v=20261125r1">
+  <script src="config.js?v=20261125r1"></script>
+  <script src="app.js?v=20261125r1" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to the rules</a>
 <header class="site">
-  <div class="wrap">
-    <a class="brand" href="index.html">Inkling Robotics Leaderboard</a>
+  <div class="wrap bar">
+    <a class="brand" href="index.html">
+      <span class="logo" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+      <span class="brand-text">
+        <span class="brand-name">Think Open Robots</span>
+        <span class="brand-sub">Inkling Robotics Leaderboard</span>
+      </span>
+    </a>
     <nav aria-label="Main">
       <ul>
-        <li><a href="index.html">Leaderboard</a></li>
+        <li><a href="index.html#leaderboard">Leaderboard</a></li>
         <li><a href="index.html#join">Join</a></li>
         <li><a href="rules.html" aria-current="page">Rules</a></li>
       </ul>
@@ -25,10 +33,16 @@
   </div>
 </header>
 
-<main id="main" class="wrap prose">
-  <h1>Rules</h1>
+<main id="main">
+ <section class="page-hero grid-ground">
+  <div class="wrap">
+  <h1 class="display">Rules</h1>
   <p class="lead">The model is fixed and the code around it is yours to improve. This page explains what is scored, how the final ranking is decided, and what is not allowed.</p>
   <p class="toc">On this page: <a href="#format">Format</a>, <a href="#scoring">Scoring</a>, <a href="#ranking">Ranking</a>, <a href="#rules">Rules</a>, <a href="#budget">Episode budget</a>, <a href="#beat-the-base">How to beat the base solution</a>.</p>
+  </div>
+ </section>
+
+ <div class="wrap prose">
 
   <h2 id="format">Format</h2>
   <p>Every entry uses the same model, Inkling 2 Mini. Your <code>agent/</code> folder decides how the model is prompted. The model writes Python against a robot API, the code runs in simulation, and a task checker decides success. There are 7 RoboSuite tasks from CaP-X, with poses and no images.</p>
@@ -94,7 +108,8 @@
     <p>Overfitting: gains that exist only on the training seeds, or that name a task's objects, will not carry over to held-out goals. Public-score luck: the best of many public scores is inflated, so do not submit every small tweak and do not pick finalists by public score alone. Budget: long prompts, retries and extra calls spend tokens and seconds, and an episode still running at the wall-clock limit fails even if the task was done. Noise: model sampling varies from run to run, so a single run of a few episodes proves little. Comparisons across different budgets or models are not valid.</p>
   </div>
 
-  <p class="meta" style="margin-top:2rem">Ready? <a href="index.html#join">Copy the starter prompt</a>, or browse the <a data-repo="" href="https://github.com/robojongit/thinkopenrobots" rel="noopener noreferrer">repository</a>.</p>
+  <p class="ready">Ready? <a href="index.html#join">Copy the starter prompt</a>, or browse the <a data-repo="" href="https://github.com/robojongit/thinkopenrobots" rel="noopener noreferrer">repository</a>.</p>
+ </div>
 </main>
 
 </body>

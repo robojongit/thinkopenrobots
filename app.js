@@ -7,12 +7,10 @@
   var CONFIG = window.SITE_CONFIG || {};
   var DATA_URL = "leaderboard.json";
   var SVG_NS = "http://www.w3.org/2000/svg";
-  var TOKENS = { "lt10k": "under 10k", "10k-30k": "10–30k", "gt30k": "over 30k" };
-  /* The coding agent named in a submission's agent/NOTES.md: the same rule as bench and the
-   * server (bench/coding_agent.py, checked by a test). */
+  var TOKENS = { "lt10k": ["under 10k", 1], "10k-30k": ["10–30k", 2], "gt30k": ["over 30k", 3] };
+  var LOGIN_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/;
+  /* same rule as the schema: ASCII letters, digits, spaces, . _ + - / ( ) and the middle dot */
   var CODING_AGENT = /^[A-Za-z0-9 ._+\-\/()\u00b7]{1,40}$/;
-  /* A GitHub login: letters, digits and single inner hyphens, at most 39 characters. */
-  var GITHUB_LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/;
 
   /* ---------- small helpers ---------- */
 
@@ -51,17 +49,9 @@
       return null;
     }
   }
+  function validLogin(account) { return LOGIN_RE.test(account); }
   function profileUrl(account) {
-    return /^[A-Za-z0-9-]{1,39}$/.test(account) ? "https://github.com/" + account : null;
-  }
-  function avatar(account) {
-    if (!GITHUB_LOGIN.test(account)) return null;
-    var img = el("img", { "class": "avatar", src: "https://github.com/" + encodeURIComponent(account) + ".png?size=64",
-      width: "24", height: "24", alt: "", loading: "lazy", decoding: "async", referrerpolicy: "no-referrer" });
-    img.addEventListener("error", function () {
-      if (img.parentNode) img.parentNode.replaceChild(el("span", { "class": "avatar", "aria-hidden": "true" }), img);
-    });
-    return img;
+    return validLogin(account) ? "https://github.com/" + account : null;
   }
   function link(href, text, props) {
     var safe = httpsUrl(href);
@@ -69,6 +59,9 @@
     var p = { href: safe, rel: "noopener noreferrer" };
     for (var k in props || {}) p[k] = props[k];
     return el("a", p, [text]);
+  }
+  function reveal(node) {
+    if (window.SiteMotion) window.SiteMotion.reveal(node);
   }
 
   var dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
@@ -81,10 +74,10 @@
 
   function num(v) { return typeof v === "number" && isFinite(v) ? v : null; }
   function str(v, max) { return typeof v === "string" ? v.slice(0, max) : ""; }
-  function codingAgent(v) {
-    if (typeof v !== "string") return null;
-    v = v.trim();
-    return CODING_AGENT.test(v) ? v : null;
+  function agentName(v) {
+    if (typeof v !== "string") return "";
+    var s = v.trim();
+    return CODING_AGENT.test(s) && s === s.trim() ? s : "";
   }
 
   function cleanEntry(e) {
@@ -98,7 +91,7 @@
       score: score, lo: lo, hi: hi,
       tokens: Object.prototype.hasOwnProperty.call(TOKENS, e.tokens_bucket) ? e.tokens_bucket : null,
       url: str(e.commit_url, 300),
-      agent: codingAgent(e.coding_agent)
+      agent: agentName(e.coding_agent)
     };
   }
   function cleanFinal(f) {
@@ -163,18 +156,21 @@
 
   /* ---------- tables ---------- */
 
-  function buildTable(label, headers, rows, makeCells, rowClass) {
+  /* A real <table>; the explicit ARIA roles keep its semantics when CSS lays rows out as grids. */
+  function buildTable(label, headers, rows, makeCells, extraClass) {
     var head = el("tr", { role: "row" }, headers.map(function (h) {
-      return el("th", { scope: "col", role: "columnheader", text: h });
+      var th = el("th", { scope: "col", role: "columnheader", "class": h.cls || "" }, [h.text]);
+      if (h.extra) th.appendChild(h.extra);
+      return th;
     }));
     var body = el("tbody", { role: "rowgroup" }, rows.map(function (r, i) {
       var cells = makeCells(r, i);
-      var tr = el("tr", { role: "row", "class": rowClass(r) }, cells.map(function (c, j) {
-        return el("td", { role: "cell", "data-label": headers[j], "class": c.cls }, [el("div", { "class": "v" }, c.nodes)]);
+      var cls = (r.isBase ? "is-base " : "") + (r.bandFirst ? "band-first" : "");
+      return el("tr", { role: "row", "class": cls }, cells.map(function (c, j) {
+        return el("td", { role: "cell", "data-label": headers[j].text, "class": c.cls }, c.nodes);
       }));
-      return tr;
     }));
-    var table = el("table", { "class": "board", role: "table" }, [
+    var table = el("table", { "class": "board" + (extraClass ? " " + extraClass : ""), role: "table" }, [
       el("caption", { "class": "sr-only", text: label }),
       el("thead", { role: "rowgroup" }, [head]),
       body
@@ -182,87 +178,185 @@
     return el("div", { "class": "table-wrap" }, [table]);
   }
 
-  function agentNode(agent) {
-    if (!agent) return null;
-    return el("span", { "class": "agent" }, [el("span", { "class": "sr-only", text: "coding agent: " }), agent]);
+  function markBandStarts(rows) {
+    rows.forEach(function (r, i) { r.bandFirst = i === 0 || rows[i - 1].band !== r.band; });
   }
-  function accountNodes(r, extra) {
-    var nodes;
+
+  function hash(s) {
+    var h = 0;
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return h;
+  }
+
+  function avatar(r) {
+    if (r.isBase) return el("span", { "class": "avatar av-base", "aria-hidden": "true" }, [el("span")]);
+    var initial = (r.account.match(/[A-Za-z0-9]/) || ["?"])[0].toUpperCase();
+    var disc = el("span", { "class": "avatar av-" + (hash(r.account) % 4), "aria-hidden": "true" }, [initial]);
+    if (validLogin(r.account)) {
+      var img = el("img", {
+        src: "https://github.com/" + r.account + ".png?size=64", alt: "", width: "32", height: "32",
+        loading: "lazy", decoding: "async", referrerpolicy: "no-referrer"
+      });
+      img.addEventListener("error", function () { if (img.parentNode) img.parentNode.removeChild(img); });
+      disc.appendChild(img);
+    }
+    return disc;
+  }
+
+  function agentIcon(color, framed) {
+    return sv("svg", { "aria-hidden": "true", width: framed ? "14" : "16", height: framed ? "14" : "16", viewBox: "0 0 16 16" }, [
+      framed ? sv("rect", { x: "0.75", y: "0.75", width: "14.5", height: "14.5", fill: "none", stroke: color, "stroke-width": "1.5" })
+        : sv("rect", { x: "0", y: "0", width: "16", height: "16", fill: "#11141B" }),
+      sv("path", { d: "M4 4.5 L7.5 8 L4 11.5", stroke: color, "stroke-width": "1.8", fill: "none" }),
+      sv("path", { d: "M9 11.5 H12.5", stroke: color, "stroke-width": "1.8" })
+    ]);
+  }
+
+  function accountNodes(r, sub) {
+    var line = el("span", { "class": "who-line" });
     if (r.isBase) {
-      nodes = ["Base solution", el("span", { "class": "badge", text: "Base" }), agentNode(r.agent),
-        el("span", { "class": "sub", text: "Vanilla Inkling 2 Mini with the CaP-X harness" })];
+      line.appendChild(el("span", { "class": "who-name", text: "Base solution" }));
+      line.appendChild(el("span", { "class": "base-tag", text: "Base" }));
+      sub = "Vanilla Inkling 2 Mini with the CaP-X harness";
     } else {
       var p = profileUrl(r.account);
-      nodes = [el("span", { "class": "who" }, [avatar(r.account), p ? link(p, r.account) : r.account]), agentNode(r.agent)];
-      if (extra) nodes.push(el("span", { "class": "sub", text: extra }));
+      line.appendChild(p ? link(p, r.account, { "class": "who-name" }) : el("span", { "class": "who-name", text: r.account }));
     }
-    return nodes;
+    if (r.agent) {
+      line.appendChild(el("span", { "class": "agent-tag", title: "Coding agent" }, [
+        agentIcon("#FFFFFF", false),
+        el("span", {}, [el("span", { "class": "sr-only", text: "Coding agent: " }), r.agent])
+      ]));
+    }
+    var who = el("span", { "class": "who" }, [line]);
+    if (sub) who.appendChild(el("span", { "class": "who-sub", text: sub }));
+    return [avatar(r), who];
   }
-  function scoreNodes(r) {
-    return [el("span", { "class": "num", text: fmtScore(r.score) }),
-      el("span", { "class": "ci", text: "(" + fmtCi(r.lo, r.hi) + ")" })];
+
+  /* scale for the interval bars: whole tens around every interval shown */
+  function scaleFor(rows) {
+    var d0 = Math.floor(Math.min.apply(null, rows.map(function (r) { return r.lo; })) / 10) * 10;
+    var d1 = Math.ceil(Math.max.apply(null, rows.map(function (r) { return r.hi; })) / 10) * 10;
+    d0 = Math.max(0, d0); d1 = Math.min(100, d1);
+    if (d1 <= d0) { d0 = Math.max(0, d0 - 10); d1 = Math.min(100, d0 + 20); }
+    return { d0: d0, d1: d1, at: function (v) { return Math.max(0, Math.min(100, (v - d0) / (d1 - d0) * 100)); } };
   }
+  function scaleHeader(scale) {
+    return el("span", { "class": "th-scale", "aria-hidden": "true" }, [
+      el("span"), el("span", {}, [el("span", { text: scale.d0 + "%" }), el("span", { text: scale.d1 + "%" })])
+    ]);
+  }
+
+  function scoreNodes(r, scale, baseScore, i) {
+    var left = scale.at(Math.min(r.lo, r.score)), right = scale.at(Math.max(r.hi, r.score)), dot = scale.at(r.score);
+    var width = Math.max(right - left, 0.5);
+    var range = el("span", { "class": "range" });
+    range.style.left = left.toFixed(2) + "%";
+    range.style.width = width.toFixed(2) + "%";
+    range.style.setProperty("--o", ((dot - left) / width * 100).toFixed(1) + "%");
+    range.style.setProperty("--i", String(Math.min(i, 20)));
+    var dotEl = el("span", { "class": "dot" });
+    dotEl.style.left = dot.toFixed(2) + "%";
+    var bar = el("span", { "class": "ivl", "aria-hidden": "true" }, [el("span", { "class": "track" })]);
+    if (baseScore !== null) {
+      var tick = el("span", { "class": "base-tick" });
+      tick.style.left = scale.at(baseScore).toFixed(2) + "%";
+      bar.appendChild(tick);
+    }
+    bar.appendChild(range);
+    bar.appendChild(dotEl);
+    bar.appendChild(el("span", { "class": "scale" }, [el("span", { text: scale.d0 + "%" }), el("span", { text: scale.d1 + "%" })]));
+    return [
+      el("span", { "class": "score-num" }, [
+        el("span", { "class": "num", text: fmtScore(r.score) }),
+        el("span", { "class": "ci", text: "(" + fmtCi(r.lo, r.hi) + ")" })
+      ]),
+      bar
+    ];
+  }
+  /* "17 Dec 2026, 11:35:00" as two parts, so the column wraps the same way on every row */
+  function timeNode(d) {
+    var full = timeFmt.format(d), cut = full.lastIndexOf(", ");
+    var parts = cut > 0 ? [full.slice(0, cut + 2), full.slice(cut + 2)] : [full];
+    return el("time", { datetime: d.toISOString() }, parts.map(function (t) { return el("span", { text: t }); }));
+  }
+  function bandNodes(r) { return [el("span", { "class": "band-badge", text: String(r.band) })]; }
 
   function renderStandings(data, showAll) {
     var host = $("standings-table");
     clear(host);
     var rows = (showAll ? data.entries.slice() : bestPerAccount(data.entries)).sort(byScore);
     if (!rows.length) {
-      host.appendChild(el("p", { "class": "empty", text: "No submissions have been scored yet. The base solution appears here first." }));
+      host.appendChild(el("div", { "class": "table-wrap" }, [
+        el("p", { "class": "empty", text: "No submissions have been scored yet. The base solution appears here first." })
+      ]));
       return;
     }
     assignBands(rows);
+    markBandStarts(rows);
+    var scale = scaleFor(rows);
+    var base = data.entries.filter(function (e) { return e.isBase; })[0];
+    var baseScore = base ? base.score : null;
     host.appendChild(buildTable(
       showAll ? "All public submissions by public score" : "Best public submission per account by public score",
-      ["Band", "Account", "Public score (95% interval)", "Tokens per episode", "Time (UTC)", "Submission"],
+      [{ text: "Band" }, { text: "Account" },
+        { text: "Public score (95% interval)", cls: "th-score", extra: scaleHeader(scale) },
+        { text: "Tokens per episode" }, { text: "Time (UTC)" }, { text: "Submission" }],
       rows,
-      function (r) {
+      function (r, i) {
         var d = new Date(r.t);
-        var extra = !showAll && r.count > 1 ? r.count + " submissions" : null;
+        var sub = !showAll && r.count > 1 ? r.count + " submissions" : null;
+        var tk = r.tokens ? TOKENS[r.tokens] : null;
+        var name = r.isBase ? "the base solution" : r.account;
         return [
-          { cls: "cell-band", nodes: [String(r.band)] },
-          { cls: "cell-account", nodes: accountNodes(r, extra) },
-          { cls: "cell-score", nodes: scoreNodes(r) },
-          { cls: "cell-tokens", nodes: [r.tokens ? TOKENS[r.tokens] : "–"] },
-          { cls: "cell-date", nodes: [el("time", { datetime: d.toISOString(), text: timeFmt.format(d) })] },
-          { cls: "cell-commit", nodes: [r.url ? link(r.url, r.id || "commit", { "aria-label": "Commit " + (r.id || "") + " by " + r.account }) : "–"] }
+          { cls: "cell-band", nodes: bandNodes(r) },
+          { cls: "cell-account", nodes: accountNodes(r, sub) },
+          { cls: "cell-score", nodes: scoreNodes(r, scale, baseScore, i) },
+          { cls: "cell-tokens", nodes: tk ? [el("span", { "class": "pips", "aria-hidden": "true" }, [1, 2, 3].map(function (n) {
+            return el("span", { "class": n <= tk[1] ? "on" : "" });
+          })), el("span", { text: tk[0] })] : ["–"] },
+          { cls: "cell-date", nodes: [timeNode(d)] },
+          { cls: "cell-commit", nodes: [r.url ? link(r.url, r.id || "commit", { "aria-label": "Commit " + (r.id || "") + " by " + name }) : "–"] }
         ];
-      },
-      function (r) { return r.isBase ? "is-base" : ""; }
+      }
     ));
+    reveal(host);
   }
 
-  function renderFinal(final, entries) {
-    var agents = {};
-    entries.forEach(function (e) { if (e.id && e.agent) agents[e.id] = e.agent; });
+  function renderFinal(final) {
     var section = $("final");
     var host = $("final-table");
     clear(host);
     if (!final || !final.rows.length) { section.hidden = true; return; }
     section.hidden = false;
     var rows = final.rows.slice().sort(function (a, b) { return a.band - b.band || b.score - a.score; });
+    markBandStarts(rows);
+    var scale = scaleFor(rows);
+    var base = rows.filter(function (r) { return r.isBase; })[0];
     var meta = $("final-meta");
     meta.textContent = final.revealed ? "Revealed " + dateFmt.format(new Date(final.revealed)) + ". " : "";
     host.appendChild(buildTable(
       "Final ranking by private score",
-      ["Band", "Account", "Private score (95% interval)", "Runs averaged", "Chosen submissions"],
+      [{ text: "Band" }, { text: "Account" },
+        { text: "Private score (95% interval)", cls: "th-score", extra: scaleHeader(scale) },
+        { text: "Runs averaged" }, { text: "Chosen submissions" }],
       rows,
-      function (r) {
-        var picks = r.picks.map(function (p, i) {
-          return el("span", {}, [i ? ", " : "", p.url ? link(p.url, p.id || "commit", { "aria-label": "Commit " + p.id + " by " + r.account }) : p.id,
-            agents[p.id] ? " (" + agents[p.id] + ")" : null]);
+      function (r, i) {
+        var picks = r.picks.map(function (p) {
+          return el("span", {}, [p.url ? link(p.url, p.id || "commit", { "aria-label": "Commit " + p.id + " by " + r.account }) : p.id]);
         });
-        if (r.source === "default") picks.push(el("span", { "class": "sub", text: "most recent two (no picks made)" }));
+        if (r.source === "default") picks.push(el("span", { "class": "who-sub", text: "most recent two (no picks made)" }));
         return [
-          { cls: "cell-band", nodes: [String(r.band)] },
+          { cls: "cell-band", nodes: bandNodes(r) },
           { cls: "cell-account", nodes: accountNodes(r, null) },
-          { cls: "cell-score", nodes: scoreNodes(r) },
+          { cls: "cell-score", nodes: scoreNodes(r, scale, base ? base.score : null, i) },
           { cls: "cell-runs", nodes: [r.runs === 3 ? "3 runs (mean)" : "1 run"] },
-          { cls: "cell-commit", nodes: picks.length ? picks : ["–"] }
+          { cls: "cell-picks", nodes: [picks.length ? el("span", { "class": "picks" }, picks) : "–"] }
         ];
       },
-      function (r) { return r.isBase ? "is-base" : ""; }
+      "final"
     ));
+    reveal(host);
   }
 
   /* ---------- progress chart ---------- */
@@ -279,12 +373,6 @@
     return { base: base, subs: subs };
   }
 
-  function niceTicks(max) {
-    var step = max <= 40 ? 10 : max <= 100 ? 20 : 25;
-    var t = [];
-    for (var v = 0; v <= max; v += step) t.push(v);
-    return t;
-  }
   var DAY = 86400000;
   function timeTicks(t0, t1, maxCount) {
     var steps = [1, 2, 3, 7, 14, 30, 60, 90, 180, 365];
@@ -294,117 +382,141 @@
     for (var t = start; t <= t1; t += step * DAY) if (t >= t0) ticks.push(t);
     return ticks;
   }
+  function pct(v) { return v.toFixed(2) + "%"; }
+  function who(e) { return e.isBase ? "Base solution" : e.account; }
 
-  function drawChart(host, model, width) {
+  function drawChart(host, model, w, h) {
     clear(host);
-    var narrow = width < 480;
-    var H = narrow ? 240 : 300;
-    var m = { l: 40, r: narrow ? 12 : 16, t: 16, b: 28 };
     var all = model.subs.concat(model.base ? [model.base] : []);
     var maxScore = Math.max.apply(null, all.map(function (e) { return e.score; }));
     var yMax = Math.min(100, Math.max(20, Math.ceil((maxScore + 5) / 10) * 10));
     var timed = model.subs.length ? model.subs : [model.base];
     var t0 = timed[0].t, t1 = timed[timed.length - 1].t;
     if (t1 - t0 < DAY) { t0 -= DAY / 2; t1 += DAY / 2; }
-    var pad = (t1 - t0) * 0.03;
-    t0 -= pad; t1 += pad;
-    function X(t) { return m.l + (t - t0) / (t1 - t0) * (width - m.l - m.r); }
-    function Y(v) { return H - m.b - v / yMax * (H - m.t - m.b); }
+    var padT = (t1 - t0) * 0.04;
+    t0 -= padT; t1 += padT;
+    function X(t) { return (t - t0) / (t1 - t0) * 100; }
+    function Y(v) { return 100 - v / yMax * 100; }
 
-    var svg = sv("svg", { viewBox: "0 0 " + width + " " + H, width: width, height: H, role: "img",
-      "aria-label": "Line chart of the best public score over time. " +
-        (model.subs.length ? "The latest best is " + fmtScore(model.subs[model.subs.length - 1].best) + ". " : "No submissions yet. ") +
-        (model.base ? "The base solution scored " + fmtScore(model.base.score) + ". " : "") + "The table above lists every value." });
+    var last = model.subs.length ? model.subs[model.subs.length - 1] : null;
+    host.setAttribute("role", "group");
+    host.setAttribute("aria-label", "Chart of the best public score over time. " +
+      (last ? "The latest best is " + fmtScore(last.best) + ". " : "No submissions yet. ") +
+      (model.base ? "The base solution scored " + fmtScore(model.base.score) + ". " : "") + "The table above lists every value.");
 
-    niceTicks(yMax).forEach(function (v) {
-      svg.appendChild(sv("line", { "class": v === 0 ? "axis" : "grid", x1: m.l, x2: width - m.r, y1: Y(v), y2: Y(v) }));
-      svg.appendChild(sv("text", { x: m.l - 6, y: Y(v) + 4, "text-anchor": "end", text: v + "%" }));
-    });
-    timeTicks(t0, t1, Math.max(2, Math.floor((width - m.l - m.r) / 80))).forEach(function (t) {
-      svg.appendChild(sv("text", { x: X(t), y: H - 8, "text-anchor": "middle", text: shortDate.format(new Date(t)) }));
+    var plot = el("div", { "class": "plot" });
+    var deco = el("div", { "aria-hidden": "true" });
+    plot.appendChild(deco);
+
+    var yStep = yMax <= 60 ? 10 : 20;
+    for (var v = 0; v <= yMax; v += yStep) {
+      var yt = el("div", { "class": v === 0 ? "ytick zero" : "ytick" }, [el("span", { text: v + "%" })]);
+      yt.style.top = pct(Y(v));
+      deco.appendChild(yt);
+    }
+    var xs = model.subs.length ? timeTicks(t0, t1, Math.max(2, Math.min(7, Math.floor(w / 72)))) : [model.base.t];
+    xs.forEach(function (t) {
+      var xt = el("div", { "class": "xtick", text: shortDate.format(new Date(t)) });
+      xt.style.left = pct(X(t));
+      deco.appendChild(xt);
     });
 
     if (model.base) {
-      var by = Y(model.base.score);
-      svg.appendChild(sv("line", { "class": "base", x1: m.l, x2: width - m.r, y1: by, y2: by }));
-      svg.appendChild(sv("text", { "class": "lbl-base", x: width - m.r, y: by + 16, "text-anchor": "end",
-        text: "Base solution " + fmtScore(model.base.score) }));
+      var bl = el("div", { "class": "base-line" });
+      bl.style.top = pct(Y(model.base.score));
+      var lbl = el("div", { "class": "base-lbl", text: "Base solution " + fmtScore(model.base.score) });
+      lbl.style.top = pct(Y(model.base.score));
+      deco.appendChild(bl);
+      deco.appendChild(lbl);
     }
 
-    /* best-so-far as a step line, extended to the last submission */
-    var d = "", prev = null;
-    model.subs.forEach(function (e) {
-      if (!e.record) return;
-      d += (prev === null ? "M" : "H" + X(e.t).toFixed(1) + "V") + (prev === null ? X(e.t).toFixed(1) + " " : "") + Y(e.best).toFixed(1);
-      prev = e;
-    });
-    if (model.subs.length) {
-      d += "H" + X(model.subs[model.subs.length - 1].t).toFixed(1);
-      svg.appendChild(sv("path", { "class": "best", d: d }));
-    }
-
-    var pts = [];
-    model.subs.forEach(function (e) {
-      var cx = X(e.t), cy = Y(e.score);
-      svg.appendChild(sv("circle", { "class": e.record ? "pt record" : "pt", cx: cx, cy: cy, r: 4 }));
-      pts.push({ e: e, x: cx, y: cy });
-    });
-    if (model.subs.length) {
-      var last = model.subs[model.subs.length - 1];
-      svg.appendChild(sv("text", { "class": "lbl-best", x: Math.min(X(last.t), width - m.r), y: Y(last.best) - 10, "text-anchor": "end",
-        text: "Best " + fmtScore(last.best) }));
-    } else if (model.base) {
-      /* only the base solution so far: show it as a point, so the chart is never empty */
-      var bx = X(model.base.t), bcy = Y(model.base.score);
-      svg.appendChild(sv("circle", { "class": "pt", cx: bx, cy: bcy, r: 4 }));
-      pts.push({ e: model.base, x: bx, y: bcy });
-    }
-
-    var hot = sv("circle", { "class": "hot", r: 7, visibility: "hidden" });
-    svg.appendChild(hot);
-    var tip = el("div", { "class": "tip", hidden: "" });
-
-    function show(ev) {
-      var box = svg.getBoundingClientRect();
-      var px = (ev.clientX - box.left) * (width / box.width), py = (ev.clientY - box.top) * (H / box.height);
-      var near = null, dist = 24 * 24;
-      pts.forEach(function (p) {
-        var dd = (p.x - px) * (p.x - px) + (p.y - py) * (p.y - py);
-        if (dd < dist) { dist = dd; near = p; }
+    if (last) {
+      /* best-so-far as a step line in pixels, so it can be drawn in with a dash offset */
+      var d = "";
+      model.subs.forEach(function (e) {
+        if (!e.record) return;
+        var x = (X(e.t) / 100 * w).toFixed(1), y = (Y(e.best) / 100 * h).toFixed(1);
+        d += d ? " H" + x + " V" + y : "M" + x + " " + y;
       });
-      if (!near) { hide(); return; }
-      hot.setAttribute("cx", near.x); hot.setAttribute("cy", near.y); hot.setAttribute("visibility", "visible");
-      var e = near.e;
-      tip.textContent = (e.isBase ? "Base solution" : e.account) + (e.agent ? " (" + e.agent + ")" : "") + ": " + fmtScore(e.score) + " (" + fmtCi(e.lo, e.hi) + "), " + timeFmt.format(new Date(e.t)) + " UTC";
-      tip.hidden = false;
-      var tx = Math.min(Math.max(near.x, 100), width - 100);
-      tip.style.left = tx + "px"; tip.style.top = (near.y - 12) + "px";
+      d += " H" + (X(last.t) / 100 * w).toFixed(1);
+      var path = sv("path", { "class": "step", d: d });
+      var svg = sv("svg", { "class": "step-svg", width: String(w), height: String(h), viewBox: "0 0 " + w + " " + h }, [path]);
+      deco.appendChild(svg);
+      var best = el("div", { "class": "best-lbl", text: "Best " + fmtScore(last.best) });
+      best.style.left = pct(X(last.t));
+      best.style.top = pct(Y(last.best));
+      deco.appendChild(best);
     }
-    function hide() { tip.hidden = true; hot.setAttribute("visibility", "hidden"); }
-    svg.addEventListener("pointermove", show);
-    svg.addEventListener("pointerdown", show);
-    svg.addEventListener("pointerleave", hide);
 
-    host.appendChild(svg);
-    host.appendChild(tip);
+    var tip = el("div", { "class": "tip", "aria-hidden": "true", hidden: "" });
+    var current = null;
+    function show(e, btn) {
+      if (current) current.classList.remove("on");
+      current = btn;
+      btn.classList.add("on");
+      clear(tip);
+      tip.appendChild(el("span", { "class": "t-who", text: who(e) }));
+      if (e.agent) tip.appendChild(el("span", { "class": "t-agent" }, [agentIcon("#FFC800", true), el("span", { text: e.agent })]));
+      tip.appendChild(el("span", { "class": "t-score", text: fmtScore(e.score) + "  (" + fmtCi(e.lo, e.hi) + ")" }));
+      tip.appendChild(el("span", { "class": "t-when", text: timeFmt.format(new Date(e.t)) + " UTC" }));
+      var tx = Math.min(Math.max(X(e.t), 12), 88), ty = Y(e.score);
+      tip.style.left = pct(tx);
+      tip.style.top = pct(ty);
+      tip.style.transform = ty < 35 ? "translate(-50%, 18px)" : "translate(-50%, calc(-100% - 18px))";
+      tip.hidden = false;
+    }
+    function hide() {
+      tip.hidden = true;
+      if (current) current.classList.remove("on");
+      current = null;
+    }
+
+    var pts = model.subs.length ? model.subs : [model.base];
+    pts.forEach(function (e, i) {
+      var label = who(e) + (e.agent && !e.isBase ? ", built with " + e.agent : "") + ": " + fmtScore(e.score) +
+        " (" + fmtCi(e.lo, e.hi) + "), " + timeFmt.format(new Date(e.t)) + " UTC";
+      var btn = el("button", { type: "button", "class": e.record ? "pt record" : "pt", "aria-label": label }, [el("i")]);
+      btn.style.left = pct(X(e.t));
+      btn.style.top = pct(Y(e.score));
+      btn.style.setProperty("--i", String(Math.min(i, 30)));
+      function on() { show(e, btn); }
+      btn.addEventListener("mouseenter", on);
+      btn.addEventListener("focus", on);
+      btn.addEventListener("click", on);
+      btn.addEventListener("mouseleave", hide);
+      btn.addEventListener("blur", hide);
+      btn.addEventListener("keydown", function (ev) { if (ev.key === "Escape") hide(); });
+      plot.appendChild(btn);
+    });
+    plot.appendChild(tip);
+    host.appendChild(plot);
+
+    if (path && path.getTotalLength) {
+      var len = Math.ceil(path.getTotalLength()) + 2;
+      path.style.setProperty("--len", String(len));
+    }
   }
 
+  var chartObserver = null;
   function renderChart(entries) {
     var section = $("progress");
     var host = $("chart-host");
     var model = chartModel(entries);
-    if (!model.subs.length && !model.base) { section.hidden = true; return; }
+    if (!model.subs.length && !model.base) { section.hidden = true; clear(host); return; }
     section.hidden = false;
-    var lastW = 0;
+    var lastW = 0, lastH = 0;
     function draw() {
-      var w = Math.round(host.clientWidth);
-      if (w < 200 || w === lastW) return;
-      lastW = w;
-      drawChart(host, model, w);
+      /* plot area = box minus the axis margins (60 + 24, 24 + 44) and borders */
+      var w = Math.round(host.clientWidth) - 84, h = Math.round(host.clientHeight) - 68;
+      if (w < 100 || h < 100 || (w === lastW && h === lastH)) return;
+      lastW = w; lastH = h;
+      drawChart(host, model, w, h);
     }
     draw();
-    if (window.ResizeObserver) new ResizeObserver(draw).observe(host);
+    if (chartObserver) chartObserver.disconnect();
+    if (window.ResizeObserver) { chartObserver = new ResizeObserver(draw); chartObserver.observe(host); }
     else window.addEventListener("resize", draw);
+    reveal(host);
   }
 
   /* ---------- join block ---------- */
@@ -439,8 +551,11 @@
     var status = $("copy-status"), btn = $("copy-btn"), timer;
     function say(msg) {
       status.textContent = msg;
+      status.classList.remove("pop");
+      void status.offsetWidth; /* restart the small entry animation */
+      status.classList.add("pop");
       clearTimeout(timer);
-      timer = setTimeout(function () { status.textContent = ""; }, 3000);
+      timer = setTimeout(function () { status.textContent = ""; status.classList.remove("pop"); }, 3000);
     }
     btn.addEventListener("click", function () {
       copyText(text).then(function () { say("Copied to the clipboard."); },
@@ -473,19 +588,30 @@
     if (retry) s.lastChild.addEventListener("click", retry);
   }
 
+  function showSampleTags(on) {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-sample-tag]"), function (t) { t.hidden = !on; });
+  }
+  function hideData() {
+    $("standings-body").hidden = true;
+    $("progress").hidden = true;
+    $("final").hidden = true;
+  }
+
   function showData(data, sample) {
     var showAll = $("show-all");
-    $("data-sections").hidden = false;
+    $("standings-body").hidden = false;
     renderStandings(data, showAll.checked);
     showAll.onchange = function () { renderStandings(data, showAll.checked); };
-    renderFinal(data.final, data.entries);
+    renderFinal(data.final);
     renderChart(data.entries);
-    setStatus(sample ? "notice" : null, sample ? "Showing sample data, not real results." : "");
+    showSampleTags(sample);
+    setStatus(null, "");
   }
 
   function load() {
     var src = sourceUrl();
-    $("data-sections").hidden = true;
+    hideData();
+    showSampleTags(false);
     setStatus("notice", "Loading leaderboard…");
     fetch(src.url, { cache: "no-store" })
       .then(function (r) {
@@ -496,7 +622,8 @@
         showData(cleanData(raw), src.sample);
       })
       .catch(function (err) {
-        $("data-sections").hidden = true;
+        hideData();
+        showSampleTags(false);
         setStatus("error", "The leaderboard could not be loaded (" + (err && err.message ? err.message : "unknown error") + ").", load);
       });
   }
