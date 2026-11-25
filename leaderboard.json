@@ -1,6 +1,6 @@
 {
  "schema_version": 1,
- "generated_at": "2026-11-25T13:36:50Z",
+ "generated_at": "2026-11-25T15:21:05Z",
  "entries": [
   {
    "id": "s0001",
@@ -10,7 +10,8 @@
    "ci_low": 37.48,
    "ci_high": 48.24,
    "tokens_bucket": "lt10k",
-   "commit_url": "https://github.com/robojongit/inkling-robo/commit/7b895ee2cf7e97547a1a6e3d4183c6abbed9ba27"
+   "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/648e8f735eb26cfa5043e1c0a8b4a94b32265270",
+   "is_base": true
   }
  ]
 }
