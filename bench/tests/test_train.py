@@ -1,12 +1,15 @@
 import dataclasses
 import json
+import os
+import sys
 import time
+import warnings
 from pathlib import Path
 
 import pytest
 
 from bench.exitcodes import CliError, ExitCode
-from bench.train import TrainOptions, exit_code, run_train
+from bench.train import SIM_LOG, TrainOptions, exit_code, format_estimate, run_train
 from harness.llm_relay import Budget
 from harness.tests.conftest import CHAT_AND_RUN, LIFT_REPLY
 from harness.tests.fake_env import FakeEnv
@@ -18,6 +21,16 @@ NO_SOLVE = "def solve(task, robot, llm):\n    pass\n"
 
 def boom_env(task: str, seed: int, render: bool = False):
     raise RuntimeError("simulator exploded")
+
+
+def noisy_env(task: str, seed: int, render: bool = False):
+    """An env that is as chatty as the real simulator: import-time prints, library warnings, a
+    C-level write to stderr."""
+    print("LIBERO not installed!")
+    print("[robosuite WARNING] No private macro file found!", file=sys.stderr)
+    warnings.warn("a library warning", stacklevel=1)
+    os.write(2, b"native noise on fd 2\n")
+    return FakeEnv(task, seed, render)
 
 
 def options(tmp_path: Path, agent: Path, url: str, **kwargs) -> TrainOptions:
@@ -199,3 +212,58 @@ def test_harness_crash_is_reported_apart_from_task_failure(make_agent, tmp_path)
     assert report["crash"][0]["error"] == "RuntimeError: simulator exploded"
     assert exit_code(report) == ExitCode.CRASHED
     assert (tmp_path / "runs/r1/cube_lifting/seed_1/crash.json").exists()
+
+
+NOISE = ("LIBERO not installed!", "[robosuite WARNING]", "native noise on fd 2", "library warning")
+
+
+def test_quiet_by_default_noise_goes_to_sim_log(make_agent, tmp_path, capfd):
+    agent = make_agent(CHAT_AND_RUN)
+    with FakeModel([LIFT_REPLY]) as model:
+        opts = options(tmp_path, agent, model.url, seeds={"cube_lifting": [1, 2]})
+        report = run_train(opts, noisy_env)
+    shown = capfd.readouterr()
+    assert report["overall"] == 1.0
+    assert not any(n in shown.out + shown.err for n in NOISE)
+    assert "[1/2] cube_lifting" in shown.err and "[2/2] cube_lifting" in shown.err
+    log = (opts.out / SIM_LOG).read_text()
+    assert all(n in log for n in NOISE)
+
+
+def test_verbose_shows_everything_and_writes_no_log(make_agent, tmp_path, capfd):
+    agent = make_agent(CHAT_AND_RUN)
+    with FakeModel([LIFT_REPLY]) as model:
+        opts = options(tmp_path, agent, model.url, seeds={"cube_lifting": [1]}, verbose=True)
+        run_train(opts, noisy_env)
+    shown = capfd.readouterr()
+    assert all(n in shown.out + shown.err for n in NOISE)
+    assert not (opts.out / SIM_LOG).exists()
+
+
+def test_quiet_run_still_shows_why_an_episode_crashed(make_agent, tmp_path, capfd):
+    agent = make_agent(CHAT_AND_RUN)
+    with FakeModel([LIFT_REPLY]) as model:
+        opts = options(tmp_path, agent, model.url, seeds={"cube_lifting": [1]})
+        report = run_train(opts, boom_env)
+    err = capfd.readouterr().err
+    assert report["crashed"] == 1
+    assert "[1/1] cube_lifting seed 1: RuntimeError: simulator exploded" in err
+    assert f"{opts.out / SIM_LOG}" in err  # where to look for the simulator's own output
+
+
+def test_start_of_run_line_gives_episodes_workers_and_a_duration_range(make_agent, tmp_path, capfd):
+    agent = make_agent(CHAT_AND_RUN)
+    with FakeModel([LIFT_REPLY]) as model:
+        run_train(options(tmp_path, agent, model.url, seeds={"cube_lifting": [1, 2]}), FakeEnv)
+    first = capfd.readouterr().err.splitlines()[0]
+    assert first.startswith("planned: 2 episodes at 2 workers, roughly 10 seconds to 5 minutes")
+
+
+def test_estimate_figures():
+    # 35 episodes at 2 workers took about 18 minutes; the 210 of the training split 1.5-2 hours
+    assert format_estimate(35, 2).startswith(
+        "planned: 35 episodes at 2 workers, roughly 12 to 23 minutes"
+    )
+    assert "roughly 74 minutes to 2.3 hours" in format_estimate(210, 2)
+    assert "1 episode at 1 worker" in format_estimate(1, 1)
+    assert "(5 already scored)" in format_estimate(30, 2, done=5)

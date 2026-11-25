@@ -70,6 +70,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--out", type=Path, help="run folder (default runs/<timestamp>); resumes it")
     p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="show the simulator's and libraries' own output (by default it goes to sim.log in"
+        " the run folder)",
+    )
+    p.add_argument(
         "--remote",
         action="store_true",
         help="simulate on the shared box: up to 50 episodes per run, training seeds only (default"
@@ -208,6 +214,7 @@ def cmd_train(args: argparse.Namespace) -> Result:
         video=args.video,
         sandbox=args.sandbox,
         runtime=args.runtime,
+        verbose=args.verbose,
     )
     report = train.run_train(opts)
     return report, train.format_report(report), train.exit_code(report)

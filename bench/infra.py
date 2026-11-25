@@ -19,6 +19,7 @@ import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TextIO
 
 from harness.llm_relay import chat_url
 
@@ -100,8 +101,13 @@ def classify(episode_dir: Path) -> str | None:
     return None
 
 
+console: TextIO | None = None
+"""Where `say` writes instead of ``sys.stderr``: set in quiet worker processes, whose own stderr
+goes to ``sim.log``, so that their progress and waiting messages still reach the terminal."""
+
+
 def say(message: str) -> None:
-    print(message, file=sys.stderr, flush=True)
+    print(message, file=console or sys.stderr, flush=True)
 
 
 def wait_until_ready(

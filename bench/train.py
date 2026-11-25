@@ -5,7 +5,9 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import json
+import math
 import multiprocessing
+import os
 import shutil
 import traceback
 from concurrent.futures import FIRST_COMPLETED, Future, ProcessPoolExecutor, wait
@@ -19,10 +21,21 @@ from harness.episode import EnvFactory, run_episode
 from harness.llm_relay import Budget
 from harness.sandbox import make_sandbox
 
+from . import infra
 from .exitcodes import CliError, ExitCode
 from .infra import Probe, classify, probe, say, wait_until_ready
 from .runs import CRASH, INFRA, SCORED, episode_dir, list_episodes, read_json
 from .score import compute_score
+
+SIM_LOG = "sim.log"
+"""Simulator and library output of a quiet run, in the run folder."""
+
+# Rough per-episode figures for the start-of-run estimate: a base-solution episode takes about
+# 10 to 280 s, mean about 60 s; the local simulation itself adds little. Measured: 35 episodes at
+# 2 workers took about 18 minutes, the 210-episode training split takes roughly 1.5 to 2 hours.
+EPISODE_MIN_S, EPISODE_MEAN_S, EPISODE_MAX_S = 10.0, 60.0, 280.0
+SPREAD = 0.3  # a long run averages out: the estimate is the mean time plus or minus 30%
+SMALL_RUN_ROUNDS = 3  # up to this many rounds of parallel episodes, show the whole 10-280 s spread
 
 RESULTS_COLUMNS = (
     "run_id finished overall ci_low ci_high episodes planned infra_failed crashed model agent_sha"
@@ -49,6 +62,8 @@ class TrainOptions:
     sandbox: str = "process"
     """"process" (plain subprocesses) or "container" (Docker, on ``runtime``)."""
     runtime: str = "runsc"
+    verbose: bool = False
+    """Show simulator and library output on the terminal instead of in ``<out>/sim.log``."""
 
 
 @dataclass(frozen=True)
@@ -159,11 +174,54 @@ def prepare_run(opts: TrainOptions, where: str = "local") -> None:
     )
 
 
-def run_pool(jobs: list[Job], workers: int) -> None:
+def quiet_worker(log_path: str) -> None:
+    """Pool initializer: send this process's stdout and stderr (at file-descriptor level, so the
+    simulator's import-time prints, robosuite's logger, warnings and the IK solver's logs are all
+    caught) to ``log_path``. `say` keeps writing to the terminal. Real failures stay visible:
+    an episode that crashes is reported with its reason, and ``crash.json`` has the traceback."""
+    infra.console = os.fdopen(os.dup(2), "w", buffering=1)
+    fd = os.open(log_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
+    os.dup2(fd, 1)
+    os.dup2(fd, 2)
+    os.close(fd)
+
+
+def estimate_seconds(episodes: int, workers: int) -> tuple[float, float]:
+    """Rough (low, high) wall-clock seconds for ``episodes`` at ``workers`` in parallel."""
+    rounds = math.ceil(episodes / workers)
+    if rounds <= SMALL_RUN_ROUNDS:  # too few episodes to average out
+        return rounds * EPISODE_MIN_S, rounds * EPISODE_MAX_S
+    typical = episodes * EPISODE_MEAN_S / workers
+    return typical * (1 - SPREAD), typical * (1 + SPREAD)
+
+
+def _duration(seconds: float) -> tuple[str, str]:
+    if seconds < 90:
+        return f"{seconds:.0f}", "seconds"
+    if seconds < 90 * 60:
+        return f"{seconds / 60:.0f}", "minutes"
+    return f"{seconds / 3600:.1f}", "hours"
+
+
+def format_estimate(episodes: int, workers: int, done: int = 0) -> str:
+    """The start-of-run line: episodes to run, workers and a rough duration range."""
+    (a, unit_a), (b, unit_b) = (_duration(x) for x in estimate_seconds(episodes, workers))
+    span = (a if a == b else f"{a} to {b}") if unit_a == unit_b else f"{a} {unit_a} to {b}"
+    resumed = f" ({done} already scored)" if done else ""
+    return (
+        f"planned: {episodes} episode{'s' * (episodes != 1)}{resumed} at {workers} "
+        f"worker{'s' * (workers != 1)}, roughly {span} {unit_b} (an episode takes "
+        f"{EPISODE_MIN_S:.0f} to {EPISODE_MAX_S:.0f} s, mean about {EPISODE_MEAN_S:.0f} s)"
+    )
+
+
+def run_pool(jobs: list[Job], workers: int, log_path: Path | None = None) -> None:
     """Run the jobs ``workers`` at a time; stop starting new ones once the model server has
-    defeated an episode's retries."""
+    defeated an episode's retries. With ``log_path``, workers write their stdout and stderr
+    there (see `quiet_worker`)."""
     queue = iter(jobs)
-    pool = ProcessPoolExecutor(workers, mp_context=multiprocessing.get_context("spawn"))
+    quiet = {"initializer": quiet_worker, "initargs": (str(log_path),)} if log_path else {}
+    pool = ProcessPoolExecutor(workers, mp_context=multiprocessing.get_context("spawn"), **quiet)
     running: set[Future] = set()
     finished, stopped = 0, False
     try:
@@ -174,7 +232,12 @@ def run_pool(jobs: list[Job], workers: int) -> None:
                 return
             done, running = wait(running, return_when=FIRST_COMPLETED)
             for future in done:
-                row = future.result()
+                try:
+                    row = future.result()
+                except Exception:
+                    if log_path:
+                        say(f"a worker process failed; its output is in {log_path}")
+                    raise
                 finished += 1
                 say(f"[{finished}/{len(jobs)}] {row['task']} seed {row['seed']}: {row['detail']}")
                 if row["status"] == INFRA and not stopped:
@@ -217,13 +280,18 @@ def run_train(opts: TrainOptions, make_env: EnvFactory | None = None) -> dict[st
     done = {(e.task, e.seed) for e in list_episodes(opts.out) if e.status == SCORED}
     jobs = [Job(t, s, opts, make_env) for t, s in planned if (t, s) not in done]
     if jobs:
+        say(format_estimate(len(jobs), opts.workers, len(planned) - len(jobs)))
         check_server(opts)
         if make_env is None:  # the real simulator: one IK server, owned here, for all workers
             from harness.ik_server import ensure_ik_server
 
             ensure_ik_server()
-    run_pool(jobs, opts.workers)
-    return finish_run(opts, planned)
+    log_path = None if opts.verbose or not jobs else opts.out / SIM_LOG
+    run_pool(jobs, opts.workers, log_path)
+    report = finish_run(opts, planned)
+    if log_path and (report["crashed"] or report["infra_failed"]):
+        say(f"simulator and library output of this run: {log_path} (or rerun with --verbose)")
+    return report
 
 
 def finish_run(opts: TrainOptions, planned: list[tuple[str, int]]) -> dict[str, Any]:
