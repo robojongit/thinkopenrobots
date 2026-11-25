@@ -68,9 +68,13 @@ def compare_runs(run_a: Path, run_b: Path) -> dict[str, Any]:
             f"only {len(shared)} shared (task, seed) pairs (under {MIN_PAIRS}); "
             "the interval is wide and a verdict is weak evidence"
         )
+    notes = []
     unpaired = len(a) + len(b) - 2 * len(shared)
     if unpaired:
-        warnings.append(f"{unpaired} scored episodes have no partner in the other run; ignored")
+        notes.append(
+            f"compared on the {len(shared)} (task, seed) pairs both runs share; "
+            f"{unpaired} episodes exist in only one run and were not used"
+        )
     return {
         "a": str(run_a),
         "b": str(run_b),
@@ -88,12 +92,14 @@ def compare_runs(run_a: Path, run_b: Path) -> dict[str, Any]:
         "per_task": per_task,
         "verdict": verdict(low, high),
         "warnings": warnings,
+        "notes": notes,
     }
 
 
 def format_comparison(c: dict[str, Any]) -> str:
     o = c["overall"]
     lines = [f"compare {c['a']} (a) -> {c['b']} (b): {c['pairs']} shared (task, seed) pairs"]
+    lines += [f"note: {n}" for n in c["notes"]]
     lines += [f"WARNING: {w}" for w in c["warnings"]]
     lines.append(f"{'task':<18}{'n':>4}{'a':>8}{'b':>8}{'delta':>8}{'gained':>8}{'lost':>6}")
     for task, t in c["per_task"].items():
