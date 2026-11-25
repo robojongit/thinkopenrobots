@@ -54,3 +54,39 @@ def test_non_https_commit_url_is_rejected():
     doc = load("leaderboard.sample.json")
     doc["entries"][1]["commit_url"] = "javascript:alert(1)"
     assert list(Draft202012Validator(SCHEMA).iter_errors(doc))
+
+
+def test_samples_show_a_spread_of_coding_agents():
+    entries = load("leaderboard.sample.json")["entries"]
+    agents = {e["coding_agent"] for e in entries if not e.get("is_base")}
+    assert {"Claude Code · Fable 5", "Codex", "Cursor", "Gemini CLI", "by hand"} <= agents
+
+
+def test_coding_agent_is_optional():
+    doc = load("leaderboard.sample.json")
+    for e in doc["entries"]:
+        e.pop("coding_agent")
+    assert not list(Draft202012Validator(SCHEMA).iter_errors(doc))
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "",
+        " ",
+        " Codex",
+        "Codex ",
+        "x" * 41,
+        "<img src=x onerror=alert(1)>",
+        "Codex\nCursor",
+        "Codex & Cursor",
+        '"Codex"',
+        "Codеx",
+        None,
+        42,
+    ],
+)
+def test_hostile_coding_agent_is_rejected(value):
+    doc = load("leaderboard.sample.json")
+    doc["entries"][1]["coding_agent"] = value
+    assert list(Draft202012Validator(SCHEMA).iter_errors(doc))

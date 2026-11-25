@@ -11,7 +11,8 @@
       "ci_low": 17.2,
       "ci_high": 31.4,
       "tokens_bucket": "10k-30k",
-      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/649d9a53e4171916092c21a68a47655e789fd7df"
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/649d9a53e4171916092c21a68a47655e789fd7df",
+      "coding_agent": "reference harness (Claude Code port)"
     },
     {
       "id": "s0001",
@@ -21,7 +22,8 @@
       "ci_low": 18.8,
       "ci_high": 33.4,
       "tokens_bucket": "10k-30k",
-      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/39b4c7cd4e4f484e7fefa3e2c95bc9340906db00"
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/39b4c7cd4e4f484e7fefa3e2c95bc9340906db00",
+      "coding_agent": "Claude Code · Sonnet 5.5"
     },
     {
       "id": "s0002",
@@ -31,7 +33,8 @@
       "ci_low": 14.6,
       "ci_high": 28.2,
       "tokens_bucket": "gt30k",
-      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/2d2dcaa11ee7497c4a8e4b2fd5de779f057100af"
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/2d2dcaa11ee7497c4a8e4b2fd5de779f057100af",
+      "coding_agent": "Cursor"
     },
     {
       "id": "s0003",
@@ -41,7 +44,8 @@
       "ci_low": 24.1,
       "ci_high": 39.5,
       "tokens_bucket": "10k-30k",
-      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/70861056457b0211f51c96d464b23b1052cc5b99"
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/70861056457b0211f51c96d464b23b1052cc5b99",
+      "coding_agent": "Claude Code · Sonnet 5.5"
     },
     {
       "id": "s0004",
@@ -51,7 +55,8 @@
       "ci_low": 22.0,
       "ci_high": 37.2,
       "tokens_bucket": "lt10k",
-      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/2456312e6055758454f221e4286e552648f6543b"
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/2456312e6055758454f221e4286e552648f6543b",
+      "coding_agent": "Codex"
     },
     {
       "id": "s0005",
@@ -61,7 +66,8 @@
       "ci_low": 26.3,
       "ci_high": 42.1,
       "tokens_bucket": "gt30k",
-      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/be305af9cefa97d96755019e2bfd5e000cfa53cd"
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/be305af9cefa97d96755019e2bfd5e000cfa53cd",
+      "coding_agent": "Gemini CLI"
     },
     {
       "id": "s0006",
@@ -71,7 +77,8 @@
       "ci_low": 30.8,
       "ci_high": 47.0,
       "tokens_bucket": "10k-30k",
-      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/8ecc1b8db02c9aa781a957f679ec570a9bda971b"
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/8ecc1b8db02c9aa781a957f679ec570a9bda971b",
+      "coding_agent": "Claude Code · Fable 5"
     },
     {
       "id": "s0007",
@@ -81,7 +88,8 @@
       "ci_low": 19.6,
       "ci_high": 34.4,
       "tokens_bucket": "lt10k",
-      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/6eca3055a23108548bd107b84450715247ff9635"
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/6eca3055a23108548bd107b84450715247ff9635",
+      "coding_agent": "by hand"
     },
     {
       "id": "s0008",
@@ -91,7 +99,8 @@
       "ci_low": 28.4,
       "ci_high": 44.4,
       "tokens_bucket": "lt10k",
-      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/d992a3f4409f22d219a6d4492017cca712fb9a74"
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/d992a3f4409f22d219a6d4492017cca712fb9a74",
+      "coding_agent": "Codex"
     },
     {
       "id": "s0009",
@@ -101,7 +110,8 @@
       "ci_low": 33.5,
       "ci_high": 49.9,
       "tokens_bucket": "gt30k",
-      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/a2c9f5d75f9672c858927caff95d95fff014b56b"
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/a2c9f5d75f9672c858927caff95d95fff014b56b",
+      "coding_agent": "Gemini CLI"
     },
     {
       "id": "s0010",
@@ -111,7 +121,8 @@
       "ci_low": 29.5,
       "ci_high": 45.5,
       "tokens_bucket": "10k-30k",
-      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/f5161c7e303c41c4ce2136b31f83bdcb01dae916"
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/f5161c7e303c41c4ce2136b31f83bdcb01dae916",
+      "coding_agent": "Claude Code · Fable 5"
     },
     {
       "id": "s0011",
@@ -121,7 +132,8 @@
       "ci_low": 35.9,
       "ci_high": 52.3,
       "tokens_bucket": "10k-30k",
-      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/330b51b408ea6816b44f959a2ac7cd244d75eaa1"
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/330b51b408ea6816b44f959a2ac7cd244d75eaa1",
+      "coding_agent": "Claude Code · Fable 5"
     }
   ]
 }

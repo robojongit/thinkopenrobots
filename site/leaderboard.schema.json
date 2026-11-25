@@ -51,6 +51,13 @@
       "pattern": "^https://[^\\s]+$",
       "maxLength": 300
     },
+    "coding_agent": {
+      "description": "Optional. The coding agent that built the submission, as named on the one 'Coding agent:' line of its agent/NOTES.md (trimmed): 1 to 40 characters, only ASCII letters, digits, spaces and . _ + - / ( ) and the middle dot (U+00B7), no space at either end. Treated as untrusted text by the site.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "pattern": "^[A-Za-z0-9._+/()\u00b7-](?:[A-Za-z0-9 ._+/()\u00b7-]*[A-Za-z0-9._+/()\u00b7-])?$"
+    },
     "entry": {
       "type": "object",
       "additionalProperties": false,
@@ -74,7 +81,8 @@
           "description": "Tokens per episode, coarse: lt10k = under 10k, 10k-30k, gt30k = over 30k.",
           "enum": ["lt10k", "10k-30k", "gt30k"]
         },
-        "commit_url": { "$ref": "#/$defs/commit_url" }
+        "commit_url": { "$ref": "#/$defs/commit_url" },
+        "coding_agent": { "$ref": "#/$defs/coding_agent" }
       }
     },
     "final_entry": {
