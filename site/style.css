@@ -92,13 +92,8 @@ header.site { background: var(--white); border-bottom: 2px solid var(--ink); }
 header.site .bar { padding-top: 12px; padding-bottom: 12px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 32px; }
 .brand { display: flex; align-items: center; gap: 14px; min-height: 44px; text-decoration: none; color: var(--ink); }
 .brand:hover { color: var(--ink); }
-.logo { display: grid; grid-template-columns: repeat(2, 11px); gap: 3px; flex: none; }
-.logo span { display: block; width: 11px; height: 11px; }
-.logo span:nth-child(1) { background: var(--yellow); outline: 2px solid var(--ink); outline-offset: -2px; }
-/* left column: yellow (what you change) over blue (what we run); right column: red (hidden) over green (public) */
-.logo span:nth-child(2) { background: var(--red); }
-.logo span:nth-child(3) { background: var(--accent); }
-.logo span:nth-child(4) { background: var(--green); }
+/* the mark: the hero's red cube stacked on the green one, the small yellow cube beside them */
+.logo { display: block; flex: none; }
 .brand-name { font-weight: 800; font-stretch: 125%; font-size: 18px; letter-spacing: 0.02em; line-height: 1; text-transform: uppercase; }
 header.site nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
 header.site nav a { display: flex; align-items: center; min-height: 44px; padding: 0 14px; font-weight: 700; font-size: 15px; text-decoration: none; color: var(--ink); }
