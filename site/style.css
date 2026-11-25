@@ -331,11 +331,13 @@ figure.chart figcaption { font-size: 15px; line-height: 1.5; color: var(--muted)
 /* ---------- join ---------- */
 .join { background: var(--yellow); border-top: 2px solid var(--ink); }
 .join-in { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 32px 64px; align-items: start; }
+/* the prompt block is wider than the text column, so its four lines (71 characters at most) do not wrap */
+@media (min-width: 900px) { .join-in { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); } }
 .join-text { display: flex; flex-direction: column; gap: 20px; }
 .join-title { margin: 0; font-weight: 800; font-stretch: 125%; font-size: clamp(56px, 8vw, 112px); line-height: 0.9; letter-spacing: -0.03em; }
 .join-text p { margin: 0; max-width: 46ch; font-size: clamp(18px, 1.5vw, 20px); line-height: 1.55; }
 .join-act { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
-pre.prompt { margin: 0; background: var(--ink); color: var(--white); border: 2px solid var(--ink); padding: 24px; font-family: var(--mono); font-size: 15px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; -webkit-user-select: all; user-select: all; }
+pre.prompt { margin: 0; background: var(--ink); color: var(--white); border: 2px solid var(--ink); padding: 20px 18px; font-family: var(--mono); font-size: 13px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; -webkit-user-select: all; user-select: all; }
 pre.prompt:focus-visible { outline-color: var(--ink); outline-offset: 3px; }
 .copy-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
 /* the hard shadow is the wrapper behind the button, so pressing moves the button with transform only */
