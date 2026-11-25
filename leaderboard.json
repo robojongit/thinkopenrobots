@@ -1,0 +1,16 @@
+{
+ "schema_version": 1,
+ "generated_at": "2026-11-25T13:36:50Z",
+ "entries": [
+  {
+   "id": "s0001",
+   "account": "robojongit",
+   "submitted_at": "2026-11-25T12:45:04Z",
+   "score": 42.86,
+   "ci_low": 37.48,
+   "ci_high": 48.24,
+   "tokens_bucket": "lt10k",
+   "commit_url": "https://github.com/robojongit/inkling-robo/commit/7b895ee2cf7e97547a1a6e3d4183c6abbed9ba27"
+  }
+ ]
+}

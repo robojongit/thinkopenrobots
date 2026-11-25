@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-12-18T06:00:00Z",
+  "entries": [
+    {
+      "id": "s0000",
+      "account": "inkling-robo",
+      "is_base": true,
+      "submitted_at": "2026-12-01T09:00:00Z",
+      "score": 24.3,
+      "ci_low": 17.2,
+      "ci_high": 31.4,
+      "tokens_bucket": "10k-30k",
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/649d9a53e4171916092c21a68a47655e789fd7df"
+    },
+    {
+      "id": "s0001",
+      "account": "arm-whisperer",
+      "submitted_at": "2026-12-02T14:20:00Z",
+      "score": 26.1,
+      "ci_low": 18.8,
+      "ci_high": 33.4,
+      "tokens_bucket": "10k-30k",
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/39b4c7cd4e4f484e7fefa3e2c95bc9340906db00"
+    },
+    {
+      "id": "s0002",
+      "account": "kinematic-kate",
+      "submitted_at": "2026-12-02T18:45:00Z",
+      "score": 21.4,
+      "ci_low": 14.6,
+      "ci_high": 28.2,
+      "tokens_bucket": "gt30k",
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/2d2dcaa11ee7497c4a8e4b2fd5de779f057100af"
+    },
+    {
+      "id": "s0003",
+      "account": "arm-whisperer",
+      "submitted_at": "2026-12-04T10:05:00Z",
+      "score": 31.8,
+      "ci_low": 24.1,
+      "ci_high": 39.5,
+      "tokens_bucket": "10k-30k",
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/70861056457b0211f51c96d464b23b1052cc5b99"
+    },
+    {
+      "id": "s0004",
+      "account": "nullspace",
+      "submitted_at": "2026-12-05T21:30:00Z",
+      "score": 29.6,
+      "ci_low": 22.0,
+      "ci_high": 37.2,
+      "tokens_bucket": "lt10k",
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/2456312e6055758454f221e4286e552648f6543b"
+    },
+    {
+      "id": "s0005",
+      "account": "kinematic-kate",
+      "submitted_at": "2026-12-06T08:15:00Z",
+      "score": 34.2,
+      "ci_low": 26.3,
+      "ci_high": 42.1,
+      "tokens_bucket": "gt30k",
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/be305af9cefa97d96755019e2bfd5e000cfa53cd"
+    },
+    {
+      "id": "s0006",
+      "account": "arm-whisperer",
+      "submitted_at": "2026-12-08T16:40:00Z",
+      "score": 38.9,
+      "ci_low": 30.8,
+      "ci_high": 47.0,
+      "tokens_bucket": "10k-30k",
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/8ecc1b8db02c9aa781a957f679ec570a9bda971b"
+    },
+    {
+      "id": "s0007",
+      "account": "dh-params",
+      "submitted_at": "2026-12-09T12:00:00Z",
+      "score": 27.0,
+      "ci_low": 19.6,
+      "ci_high": 34.4,
+      "tokens_bucket": "lt10k",
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/6eca3055a23108548bd107b84450715247ff9635"
+    },
+    {
+      "id": "s0008",
+      "account": "nullspace",
+      "submitted_at": "2026-12-11T19:10:00Z",
+      "score": 36.4,
+      "ci_low": 28.4,
+      "ci_high": 44.4,
+      "tokens_bucket": "lt10k",
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/d992a3f4409f22d219a6d4492017cca712fb9a74"
+    },
+    {
+      "id": "s0009",
+      "account": "kinematic-kate",
+      "submitted_at": "2026-12-13T07:55:00Z",
+      "score": 41.7,
+      "ci_low": 33.5,
+      "ci_high": 49.9,
+      "tokens_bucket": "gt30k",
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/a2c9f5d75f9672c858927caff95d95fff014b56b"
+    },
+    {
+      "id": "s0010",
+      "account": "arm-whisperer",
+      "submitted_at": "2026-12-15T22:25:00Z",
+      "score": 37.5,
+      "ci_low": 29.5,
+      "ci_high": 45.5,
+      "tokens_bucket": "10k-30k",
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/f5161c7e303c41c4ce2136b31f83bdcb01dae916"
+    },
+    {
+      "id": "s0011",
+      "account": "dh-params",
+      "submitted_at": "2026-12-17T11:35:00Z",
+      "score": 44.1,
+      "ci_low": 35.9,
+      "ci_high": 52.3,
+      "tokens_bucket": "10k-30k",
+      "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/330b51b408ea6816b44f959a2ac7cd244d75eaa1"
+    }
+  ]
+}

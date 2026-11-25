@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Inkling Robotics Leaderboard</title>
+  <meta name="description" content="An open leaderboard for robot harnesses built on Inkling 2 Mini. The model is fixed; you improve the code around it.">
+  <link rel="stylesheet" href="style.css">
+  <script src="config.js"></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the leaderboard</a>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="index.html">Inkling Robotics Leaderboard</a>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="index.html" aria-current="page">Leaderboard</a></li>
+        <li><a href="#join">Join</a></li>
+        <li><a href="rules.html">Rules</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+  <h1>Improve the code around a fixed model</h1>
+  <p class="lead">Everyone uses the same model, Inkling 2 Mini. Your agent prompts it to write Python that drives simulated robot arms through 7 CaP-X RoboSuite tasks, and the robot only runs code the model wrote. Public scores guide you; a hidden private test, which includes goal variants nobody has seen, decides the final ranking.</p>
+
+  <div id="status" class="notice" role="status" aria-live="polite">Loading leaderboard&hellip;</div>
+  <noscript><p class="notice">This page needs JavaScript to show the leaderboard.</p></noscript>
+
+  <div id="data-sections" hidden>
+    <section id="final" aria-labelledby="final-h" hidden>
+      <h2 id="final-h">Final results</h2>
+      <p class="meta"><span id="final-meta"></span>Ranking uses the private test only. Entries in the same band are statistically tied.</p>
+      <div id="final-table"></div>
+    </section>
+
+    <section id="standings" aria-labelledby="standings-h">
+      <h2 id="standings-h">Public standings</h2>
+      <p class="meta">Public test scores come with a 95% interval; a difference smaller than the interval is not evidence of a better agent. Bands group entries whose intervals overlap the band leader's. The best of many public scores is inflated by luck, so these standings do not decide the final ranking. <span id="updated"></span></p>
+      <div class="controls">
+        <label><input type="checkbox" id="show-all"> Show every submission, not only each account's best</label>
+      </div>
+      <div id="standings-table"></div>
+    </section>
+
+    <section id="progress" aria-labelledby="progress-h" hidden>
+      <h2 id="progress-h">Progress</h2>
+      <figure class="chart">
+        <ul class="legend" aria-hidden="true">
+          <li><svg viewBox="0 0 22 12"><path d="M0 6H22" stroke="var(--accent)" stroke-width="2" fill="none"/></svg>Best public score so far</li>
+          <li><svg viewBox="0 0 22 12"><path d="M0 6H22" stroke="var(--muted)" stroke-width="2" stroke-dasharray="6 4" fill="none"/></svg>Base solution</li>
+          <li><svg viewBox="0 0 22 12"><circle cx="11" cy="6" r="4" fill="var(--surface)" stroke="var(--muted)" stroke-width="1.5"/></svg>Each submission</li>
+        </ul>
+        <div id="chart-host" class="chart-host"></div>
+        <figcaption>Filled points set a new best. Hover or tap a point for its score and interval. The same data is in the table above.</figcaption>
+      </figure>
+    </section>
+  </div>
+
+  <section id="join" class="join" aria-labelledby="join-h">
+    <h2 id="join-h">Join</h2>
+    <p>Paste this into Claude Code, the Claude desktop app with access to a folder, or any coding agent with a terminal. The agent sets everything up and asks you before each submission; you approve one GitHub login and no permissions are requested.</p>
+    <pre id="prompt" class="prompt" tabindex="0" aria-label="Starter prompt"></pre>
+    <div class="copy-row">
+      <button type="button" id="copy-btn" class="primary">Copy prompt</button>
+      <span id="copy-status" class="status" role="status" aria-live="polite"></span>
+    </div>
+    <p class="meta">The repository is <a data-repo="" href="https://github.com/robojongit/thinkopenrobots" rel="noopener noreferrer">on GitHub</a>. Read the <a href="rules.html">rules</a> first.</p>
+  </section>
+</main>
+
+<footer class="site">
+  <div class="wrap"><p>Code is open and the winning agents become the next round's starting points. Built for Inkling 2 Mini.</p></div>
+</footer>
+</body>
+</html>
