@@ -1,6 +1,6 @@
 {
  "schema_version": 1,
- "generated_at": "2026-11-25T16:14:47Z",
+ "generated_at": "2026-11-25T21:58:14Z",
  "entries": [
   {
    "id": "s0001",
@@ -13,6 +13,17 @@
    "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/648e8f735eb26cfa5043e1c0a8b4a94b32265270",
    "is_base": true,
    "coding_agent": "reference harness (Claude Code port)"
+  },
+  {
+   "id": "s0008",
+   "account": "robojongit",
+   "submitted_at": "2026-11-25T20:42:08Z",
+   "score": 59.29,
+   "ci_low": 54.16,
+   "ci_high": 64.41,
+   "tokens_bucket": "10k-30k",
+   "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/e60141d68eadf1c03ebf83d378b998b1e8766251",
+   "coding_agent": "Claude Code \u00b7 Opus 5.5"
   }
  ]
 }
