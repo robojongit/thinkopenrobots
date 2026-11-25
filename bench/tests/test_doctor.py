@@ -99,6 +99,16 @@ def test_model_url_checks(monkeypatch):
     assert none.status == FAIL and "INKLING_MODEL_URL" in none.fix
 
 
+def test_model_url_through_the_gateway_says_reachable_and_that_the_model_may_sleep():
+    with ScriptedServer([(404, {})]) as gateway:
+        check = doctor.check_model_url(gateway.url, via_gateway=True)
+    assert check.status == OK and "gateway" in check.detail and "reachable" in check.detail
+    assert "may be asleep" in check.detail and "5 minutes" in check.detail
+    assert "HTTP 404" not in check.detail
+    with ScriptedServer([(404, {})]) as own:  # the person's own model: nothing about sleeping
+        assert "asleep" not in doctor.check_model_url(own.url).detail
+
+
 def test_cli_exit_codes_and_json(agent_dir, monkeypatch, capsys, tmp_path):
     monkeypatch.setenv("INKLING_CONFIG", str(tmp_path / "none.json"))
     monkeypatch.delenv("INKLING_MODEL_URL", raising=False)

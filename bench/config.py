@@ -83,11 +83,12 @@ class Config:
             return override or self.model_url
         return f"{self.gateway_url}/v1" if self.gateway_url else None
 
+    def is_gateway_url(self, url: str) -> bool:
+        return bool(self.gateway_url) and origin(url) == origin(self.gateway_url)
+
     def api_key_for(self, url: str) -> str | None:
         """The gateway key, but only for URLs on the gateway's origin."""
-        if not self.gateway_url or origin(url) != origin(self.gateway_url):
-            return None
-        return self.read_key()
+        return self.read_key() if self.is_gateway_url(url) else None
 
     def read_key(self) -> str | None:
         try:

@@ -67,8 +67,23 @@ def test_only_shared_pairs_count_and_few_pairs_warn(write_run):
     c = compare_runs(a, b)
     assert c["pairs"] == 2 and list(c["per_task"]) == ["cube_lifting"]
     assert any("only 2 shared" in w for w in c["warnings"])
-    assert any("no partner" in w for w in c["warnings"])
-    assert "WARNING" in format_comparison(c)
+    assert c["notes"] == [
+        "compared on the 2 (task, seed) pairs both runs share; "
+        "3 episodes exist in only one run and were not used"
+    ]
+    assert not any("partner" in w or "only one run" in w for w in c["warnings"])
+    text = format_comparison(c)
+    assert "WARNING: only 2 shared" in text
+    assert "note: compared on the 2 (task, seed) pairs both runs share" in text
+
+
+def test_a_smaller_follow_up_run_compares_without_a_warning(write_run):
+    base = write_run("base", outcomes(lambda t, s: s < 20))
+    small = write_run("small", {t: {s: s < 25 for s in range(30)} for t in TASKS[:2]})
+    c = compare_runs(base, small)
+    assert c["pairs"] == 60 and c["warnings"] == []
+    text = format_comparison(c)
+    assert "WARNING" not in text and "60 episodes exist in only one run" in text
 
 
 def test_no_shared_pairs_is_not_found(write_run):
