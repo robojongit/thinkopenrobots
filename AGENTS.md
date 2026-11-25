@@ -49,9 +49,9 @@ you parse output. `uv run bench --help` and `uv run bench <command> --help` list
 
 | Command | Does |
 | --- | --- |
-| `doctor` | Checks the setup and prints an exact fix for each failure |
+| `doctor` | Checks the setup and login, and prints an exact fix for each failure |
 | `login` | Logs in with GitHub and saves the gateway key |
-| `train` | Runs episodes of the training split, writes `runs/<id>/` and a row in `results.tsv` |
+| `train` | Runs training episodes into `--out runs/<name>`, adds a row to `results.tsv` |
 | `view RUN` | Readable traces of episodes (`--failures`, `--task`, `--seed`, `--limit`, `--full`) |
 | `compare RUN_A RUN_B` | Paired comparison on shared (task, seed) pairs, with a 95% interval |
 | `submit` | Uploads `agent/` for public-test scoring |
@@ -85,8 +85,9 @@ uv run bench doctor
 
 Do not clone with `--recurse-submodules` (it fetches CaP-X submodules nobody needs). If `uv`
 is missing, install it (`doctor` prints the command) and open a new shell. Apply each fix
-`doctor` prints and rerun until it exits 0. A failed `model_url` check before login is expected:
-come back to it after step 2.
+`doctor` prints and rerun until it exits 0. Besides failures it can print `[todo]` lines (for
+example `[todo] login`); those do not fail it, and step 2 says what to do. The `model_url` line
+only says the gateway is reachable: the shared model may still be asleep (see "Model trouble").
 
 Platforms: macOS and Linux simulate locally. On native Windows, local simulation is not
 supported: `bench train` simulates remotely by default (`--remote`) and downloads the same run
@@ -95,24 +96,35 @@ task, 49 episodes), and is limited per day. WSL2 is an optional way to run local
 
 ## 2. Log in
 
-Run `uv run bench login --no-wait`. It prints a URL and a one-time code and returns at once
+Look at the `login` line of the `doctor` run from step 1. If it says `[ok] login: logged in as
+<account>`, skip to the questions below. If it says `[todo] login`, run
+`uv run bench login --no-wait`. It prints a URL and a one-time code and returns at once
 (plain `bench login` waits for the approval instead). Show both to the person, exactly,
 and ask them to open the URL, sign in to GitHub and enter the code. This is the one step only a
 human can do; no permissions are requested. Do not ask for passwords or tokens. Once they have
 approved, run `uv run bench login` again: it reuses the pending code and finishes. When it exits
-0, rerun `doctor`; all checks should pass.
+0, rerun `doctor`; the `login` line should say ok.
 
-Then ask the person two things, once: may you submit by yourself when `bench compare` shows a
-clear gain (at most 3 a day), and have they set up a fallback model (see "Model trouble")?
+Then ask the person two things, once, skipping any their first message already answered: may you
+submit by yourself when `bench compare` shows a clear gain (at most 3 a day), and have they set up
+a fallback model (see "Model trouble")?
 
 ## 3. Reproduce the base score
 
-1. `uv run bench train --seeds 5` runs the first 5 training seeds of every task (35 episodes).
-   It prints progress to stderr and a table at the end. Episode time varies from about 10 s to
-   280 s, so a run takes about episodes / workers x that. Runs can outlast a tool timeout:
-   run them in the background (or with a long timeout) and poll. `--workers` defaults to 2;
-   lower it if the machine struggles.
-2. `uv run bench train --out runs/base` runs the full training split (210 episodes).
+Every run command names its run folder with `--out runs/<name>`; later steps refer to it.
+The first `bench train` (or `submit`) may print `waking the shared model, about N minutes`. That
+is normal: the shared model sleeps when idle and takes about 5 minutes to wake. The command waits
+by itself; do not interrupt or retry it.
+
+1. `uv run bench train --seeds 5 --out runs/base5` runs the first 5 training seeds of every task
+   (35 episodes). It prints a `planned:` line (episodes, workers, rough duration), then one
+   progress line per episode on stderr and a table at the end. The simulator's own output goes
+   to `runs/base5/sim.log` (`--verbose` shows it instead). 35 episodes at 2 workers took about
+   18 minutes. Runs can outlast a tool timeout: run them in the background (or with a long
+   timeout) and poll.
+2. `uv run bench train --out runs/base` runs the full training split (210 episodes). At 2
+   workers (the default) it takes roughly 1.5 to 2 hours. Use `--workers N` if the machine has
+   cores and memory to spare (each worker needs about 1.5 GB); lower it if it struggles.
 
 Expect, for the unchanged agent (50 seeds per task, measured): cube_lifting 98%, cube_stack 96%,
 nut_assembly 40%, spill_wipe 58%, two_arm_lift 22%, cube_restack 0%, two_arm_handover 0%;
@@ -126,7 +138,8 @@ person the full-split overall score and whether it is near the expected 45%.
 
 ## 4. The improvement loop
 
-Name runs (`--out runs/<n>-<what>`) so they can be compared later. Change one thing at a time.
+Give every run a name (`--out runs/<attempt>`, for example `runs/a1-retry`) so they can be
+compared later. Change one thing at a time.
 
 1. **Read failures.** `uv run bench view runs/base --failures --task two_arm_handover` (add
    `--limit 10`, `--full`, `--json` as needed). Read at least 5 failures of a task before
@@ -146,22 +159,28 @@ Name runs (`--out runs/<n>-<what>`) so they can be compared later. Change one th
    looks at the result. That leaves room: more than one call (run, read `stdout`/`stderr`,
    `robot.observe()` and the read functions, then ask the model to fix its code; the scene is
    not reset between runs, so a second run starts where the first stopped); checking the result
-   with reads before returning; getting code out of the model reliably; telling the model what
-   the API docs leave unclear (units, frames, what functions return), in terms that hold for
-   any task; sampling settings; a review call before running code.
+   with reads before returning; getting code out of the model reliably (the base solution's
+   prompt tells the model not to use code fences, but `agent.py` accepts fenced and bare code;
+   check what the model really sends); telling the model what the API docs leave unclear (units,
+   frames, what functions return), in terms that hold for any task; sampling settings; a review
+   call before running code.
    Measured failures to start from: `cube_restack` is 0%, and on `two_arm_handover` the base
    solution spends its whole 20,480-token allowance reasoning and returns no code. Find out from
    the traces why; do not guess. Also look at what passing tasks do that failing ones do not.
    Keep it general: no per-task recipes. Prompt size matters (see "Interface limits").
 3. **Rerun** on the same seeds: the same `--tasks` and `--seeds` (or `--seed-list`) as the run
    you compare with, under the same budget (never compare runs made with different `--budget-*`
-   values; those flags are for exploring only).
-4. **Compare.** `uv run bench compare runs/<before> runs/<after>`. Keep the change only if the
+   values; those flags are for exploring only), into a new `--out runs/<attempt>`. For a quick
+   check rerun only the tasks your change affects: `--tasks <task>,<task> --seeds N` takes the
+   first N training seeds per task, so it lines up with a bigger run such as `runs/base`.
+4. **Compare.** `uv run bench compare runs/base runs/<attempt>` (or against your last kept
+   run). It uses only the (task, seed) pairs both runs share, so a smaller run can be compared
+   with a bigger one; it notes how many episodes it left out. Keep the change only if the
    verdict is `real gain` (95% interval above 0). `no clear difference` or `real loss`: revert.
-   Under 50 shared pairs the interval is wide. For a borderline result, rerun both on more
-   seeds, for example `--seed-list 1-50` (these are not the filtered training seeds, so absolute
-   rates differ, but paired comparisons stay valid). A task that moves from 0 to 2 successes in
-   5 seeds is not evidence.
+   Under 50 shared pairs treat the verdict as a hint, not a result: the interval is wide. Before
+   keeping a change, confirm on more seeds, for example both runs on `--seed-list 1-50` (these
+   are not the filtered training seeds, so absolute rates differ, but paired comparisons stay
+   valid). A task that moves from 0 to 2 successes in 5 seeds is not evidence.
 5. **Log it** in `agent/memory/README.md`: date, change, runs compared, delta and interval, kept
    or reverted. Update `agent/NOTES.md` when the agent's behaviour changes. Commit kept changes
    locally with git so reverting is easy; do not push anywhere unless the person asks.
@@ -172,10 +191,10 @@ row show no gain, say so and ask whether to continue.
 **Videos.** You read traces; a video is for the person. When a failure is easier to see than to
 read (the arm misses, knocks something over, stops short), offer them a video of that one
 episode rather than recording a whole run. Rerun just it, locally with
-`uv run bench train --video --tasks <task> --seed-list <seed> --out runs/<n>-video`, or the same
-plus `--remote` on the shared box (the only way on native Windows; training seeds only). The
-file is `video.mp4` in the episode folder, `runs/<n>-video/<task>/seed_<seed>/`; `bench view`
-prints its path. Model sampling is seeded per episode, so a rerun usually replays the failure,
+`uv run bench train --video --tasks <task> --seed-list <seed> --out runs/<attempt>-video`, or
+the same plus `--remote` on the shared box (the only way on native Windows; training seeds
+only). The file is `video.mp4` in the episode folder,
+`runs/<attempt>-video/<task>/seed_<seed>/`; `bench view` prints its path. Model sampling is seeded per episode, so a rerun usually replays the failure,
 but check that the video shows what you read. Video is slow: about 4x per episode locally, and
 the wall-clock limit still applies, so a slow episode can run out of time only because it was
 recorded. Never use runs with `--video` for scores or `compare`. A remote run records at most 10
@@ -210,12 +229,12 @@ count.
 ## Model trouble
 
 `bench train` already waits when the shared model answers 429 (rate limited, it follows
-`Retry-After`) or 503 with `Retry-After` (asleep: "waking the shared model, about 4 minutes").
-It gives up after about 15 minutes and exits 4; rerun the same command and finished episodes
-are kept. Do not add retry loops for this inside `agent/` or hammer the server. If it keeps
+`Retry-After`) or 503 with `Retry-After` (asleep: "waking the shared model, about 4 minutes";
+`doctor` cannot tell whether it is awake without waking it). It gives up after about 15 minutes
+and exits 4; rerun the same command and finished episodes are kept. Do not add retry loops for this inside `agent/` or hammer the server. If it keeps
 failing, tell the person and either wait or use their fallback model: any OpenAI-compatible
 server, for example Ollama on `http://localhost:11434/v1`:
-`uv run bench train --model-url http://localhost:11434/v1 --model <name>`. Scores from another
+`uv run bench train --model-url http://localhost:11434/v1 --model <name> --out runs/own-model`. Scores from another
 model are a rough guide only; submissions are always scored on the shared model. Keep runs that
 used different models apart: never `compare` them.
 

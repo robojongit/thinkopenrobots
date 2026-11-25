@@ -38,26 +38,29 @@ git -C harness/capx submodule update --init capx/third_party/robosuite
 uv sync
 uv run bench doctor                 # checks the setup and prints an exact fix for each problem
 uv run bench login                  # GitHub device login; saves the gateway key
-uv run bench train --seeds 5        # 35 episodes: a quick check that the base score reproduces
-uv run bench train                  # the full training split, 210 episodes
-uv run bench view runs/<id> --failures
-uv run bench compare runs/<before> runs/<after>
+uv run bench train --seeds 5 --out runs/base5   # 35 episodes, about 18 min: a quick check
+uv run bench train --out runs/base              # the full split, 210 episodes, 1.5-2 hours
+uv run bench view runs/base --failures
+uv run bench compare runs/base runs/<attempt>
 uv run bench submit                 # up to 3 a day
 uv run bench status                 # queue position and public score
 ```
 
 Do not clone with `--recurse-submodules`: it fetches CaP-X submodules you do not need.
 
-- `bench train` runs episodes and writes `runs/<id>/` (one folder per episode with the
-  transcript, the code that ran and its errors) and a row in `results.tsv`. Rerunning with the
-  same `--out` resumes. `--tasks`, `--seeds N`, `--seed-list "1-50"`, `--workers`, and
-  `--budget-*` choose what runs; `bench train --help` lists them all.
+- `bench train` runs episodes and writes the `--out` folder (`runs/<name>/`, one folder per
+  episode with the transcript, the code that ran and its errors) and a row in `results.tsv`.
+  Rerunning with the same `--out` resumes. `--tasks`, `--seeds N`, `--seed-list "1-50"`,
+  `--workers`, and `--budget-*` choose what runs; `bench train --help` lists them all. It prints
+  the planned episodes and a rough duration first, and keeps the simulator's own output in
+  `sim.log` in the run folder (`--verbose` shows it).
 - `bench train --video` also writes `video.mp4` into each episode folder, at about 4x the time;
   use it for the few episodes you want to watch (`--tasks <task> --seed-list <seed>`). With
   `--remote`, at most 10 episodes of a run are recorded. Submissions never return videos.
 - `bench view` prints readable traces; `--failures` shows only failed episodes.
-- `bench compare` compares two runs on the episodes they share and gives a 95% interval and a
-  verdict: `real gain`, `no clear difference` or `real loss`.
+- `bench compare` compares two runs on the episodes they share (a smaller run can be compared
+  with a bigger one) and gives a 95% interval and a verdict: `real gain`, `no clear difference`
+  or `real loss`.
 - Every command accepts `--json`, never prompts, and uses stable exit codes (`bench --help`
   lists them; 0 is success, and a failed task is not an error).
 

@@ -81,6 +81,28 @@ def test_every_flag_mentioned_exists_somewhere(name):
                 assert flag in known, f"{name}: unknown flag {flag}"
 
 
+def test_agents_md_names_the_run_folder_of_every_train_command():
+    trains = [
+        seg
+        for seg in code_segments(DOCS["AGENTS.md"])
+        if seg.startswith("uv run bench train") and "--help" not in seg
+    ]
+    assert len(trains) >= 4
+    for seg in trains:
+        assert re.search(r"--out runs/[\w<>-]+", seg), seg
+
+
+def test_agents_md_covers_the_first_session_traps():
+    text = " ".join(DOCS["AGENTS.md"].split())
+    assert "`--verbose`" in text and "sim.log" in text  # quiet runs
+    assert "[ok] login: logged in as" in text and "[todo] login" in text  # check login first
+    assert "waking the shared model, about N minutes" in text  # a normal wait
+    assert "about 18 minutes" in text and "1.5 to 2 hours" in text and "1.5 GB" in text
+    assert "fewer than 50" in text or "Under 50 shared pairs" in text
+    assert "skipping any their first message already answered" in text
+    assert "not to use code fences" in text
+
+
 def test_every_subcommand_is_documented():
     for name in ("AGENTS.md", "README.md"):
         mentioned = {sub for sub, _ in bench_commands(DOCS[name])}
