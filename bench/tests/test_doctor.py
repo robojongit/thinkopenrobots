@@ -15,7 +15,7 @@ def agent_dir(tmp_path):
     d = tmp_path / "agent"
     d.mkdir()
     (d / "agent.py").write_text("def solve(task, robot, llm):\n    pass\n")
-    (d / "NOTES.md").write_text("# Notes\n")
+    (d / "NOTES.md").write_text("# Notes\n\nCoding agent: Codex\n")
     return d
 
 
@@ -39,6 +39,19 @@ def test_agent_problems_each_come_with_a_fix(agent_dir):
     (agent_dir / "agent.py").unlink()
     check = doctor.check_agent(agent_dir)
     assert check.status == FAIL and "missing" in check.detail and "git checkout" in check.fix
+
+
+def test_coding_agent_line(agent_dir):
+    check = doctor.check_coding_agent(agent_dir)
+    assert check.status == OK and "Codex" in check.detail
+    (agent_dir / "NOTES.md").write_text("# Notes\n- **Coding agent:** Codex\n")
+    check = doctor.check_coding_agent(agent_dir)
+    assert check.status == FAIL and 'no "Coding agent:" line' in check.detail
+    assert '"Coding agent: Claude Code · Fable 5"' in check.fix
+    (agent_dir / "NOTES.md").write_text("Coding agent: <b>x</b>\n")
+    assert doctor.check_coding_agent(agent_dir).status == FAIL
+    (agent_dir / "NOTES.md").unlink()
+    assert doctor.check_coding_agent(agent_dir).status == SKIP
 
 
 def test_python_and_uv(monkeypatch):
@@ -94,7 +107,12 @@ def test_cli_exit_codes_and_json(agent_dir, monkeypatch, capsys, tmp_path):
         argv = ["doctor", "--agent", str(agent_dir), "--model-url", server.url, "--json"]
         assert main(argv) == ExitCode.OK
         data = json.loads(capsys.readouterr().out)
-        assert data["ok"] and {c["name"] for c in data["checks"]} >= {"python", "uv", "agent"}
+        names = {c["name"] for c in data["checks"]}
+        assert data["ok"] and names >= {"python", "uv", "agent", "coding_agent"}
+        (agent_dir / "NOTES.md").write_text("# Notes\n")
+        assert main(argv) == ExitCode.NOT_READY
+        data = json.loads(capsys.readouterr().out)
+        assert data["failed"] == ["coding_agent"]
         (agent_dir / "NOTES.md").unlink()
         assert main(argv) == ExitCode.NOT_READY
         captured = capsys.readouterr()

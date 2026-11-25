@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import pytest
 
+from bench.coding_agent import parse_notes
 from bench.train import agent_fingerprint
 from harness.llm_relay import Budget
 from harness.tests.fake_env import FakeEnv
@@ -42,6 +43,11 @@ def test_agent_code_is_a_copy_of_base():
     assert agent_fingerprint(AGENT_DIR) == agent_fingerprint(BASE_DIR)
     for name in ("NOTES.md", "memory/README.md"):
         assert (AGENT_DIR / name).is_file()
+
+
+def test_notes_name_the_coding_agent():
+    labels = {parse_notes((d / "NOTES.md").read_bytes()) for d in (AGENT_DIR, BASE_DIR)}
+    assert labels == {"reference harness (Claude Code port)"}
 
 
 def test_messages_are_capx_full_prompt():
