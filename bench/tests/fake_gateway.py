@@ -345,6 +345,8 @@ class FakeGateway:
                     if account is None:
                         return None
                     mine = [j for j in state.jobs if j["account"] == account]
+                    if path == "/v1/me":
+                        return self._send(200, {"account": account, "tokens_today": 0})
                     if path == "/v1/submissions":
                         subs = [self._view(j) for j in mine if j["kind"] == "score"][::-1]
                         return self._send(

@@ -29,6 +29,7 @@ from bench.config import load_config
 from bench.exitcodes import ExitCode
 from bench.gateway import Gateway, GatewayError
 from bench.tests.fake_gateway import FakeGateway
+from bench.tests.scripted_server import ScriptedServer
 from harness.tests.conftest import CHAT_AND_RUN
 
 REPO = Path(__file__).resolve().parents[2]
@@ -183,6 +184,91 @@ def login(capsys, server, monkeypatch, name="alice"):
     code, out, err = run_cli(capsys, "login", "--json")
     assert code == 0, err
     return json.loads(out)
+
+
+# --- doctor: the login check ---------------------------------------------------------------------
+@pytest.fixture
+def healthy_setup(monkeypatch):
+    """Everything but the login and model checks is fine, so the exit code says about those."""
+    monkeypatch.setattr(doctor, "check_simulator", lambda: doctor.Check("simulator", "ok", "fake"))
+    monkeypatch.setattr(doctor, "check_uv", lambda: doctor.Check("uv", "ok", "fake"))
+
+
+def doctor_checks(capsys, *extra):
+    code, out, err = run_cli(capsys, "doctor", "--json", *extra)
+    data = json.loads(out)
+    return code, {c["name"]: c for c in data["checks"]}, out + err
+
+
+def test_doctor_login_check_logged_in_and_never_prints_the_key(
+    capsys, home, server, monkeypatch, healthy_setup
+):
+    login(capsys, server, monkeypatch)
+    key = (home / "config" / "inkling-robo" / "key").read_text().strip()
+    code, checks, shown = doctor_checks(capsys)
+    assert code == 0
+    assert checks["login"]["status"] == "ok" and checks["login"]["detail"] == "logged in as alice"
+    assert checks["model_url"]["status"] == "ok" and "reachable" in checks["model_url"]["detail"]
+    assert "may be asleep" in checks["model_url"]["detail"]
+    assert key not in shown
+
+
+def test_doctor_login_check_without_a_key_is_a_todo_with_the_command(
+    capsys, home, server, monkeypatch
+):
+    monkeypatch.setenv("INKLING_GATEWAY_URL", server.url)
+    code, checks, _ = doctor_checks(capsys)
+    login_check = checks["login"]
+    assert login_check["status"] == "todo" and login_check["fix"] == "uv run bench login --no-wait"
+    assert "login" not in json.loads(capsys.readouterr().out or "{}").get("failed", [])
+    code_text, text, _ = run_cli(capsys, "doctor")
+    assert "[todo] login: not logged in" in text and "fix: uv run bench login --no-wait" in text
+
+
+def test_doctor_login_check_with_a_rejected_key_is_a_todo(
+    capsys, home, server, monkeypatch, healthy_setup
+):
+    monkeypatch.setenv("INKLING_GATEWAY_URL", server.url)
+    key_path = home / "config" / "inkling-robo" / "key"
+    key_path.parent.mkdir(parents=True)
+    key_path.write_text("ink_not_a_real_key\n")
+    code, checks, shown = doctor_checks(capsys)
+    assert code == 0
+    assert checks["login"]["status"] == "todo" and "rejected" in checks["login"]["detail"]
+    assert checks["login"]["fix"] == "uv run bench login --no-wait"
+    assert "ink_not_a_real_key" not in shown
+
+
+def test_doctor_login_does_not_fail_doctor_with_your_own_model(
+    capsys, home, fake, monkeypatch, healthy_setup
+):
+    monkeypatch.setenv("INKLING_GATEWAY_URL", fake.url)
+    with ScriptedServer([(200, {})]) as own:
+        argv = ("--model-url", own.url)
+        code, checks, _ = doctor_checks(capsys, *argv)
+        assert code == 0
+        assert checks["login"]["status"] == "skip" and "own model" in checks["login"]["detail"]
+        assert "model_url" in checks and checks["model_url"]["status"] == "ok"
+        assert "asleep" not in checks["model_url"]["detail"]
+        login(capsys, fake, monkeypatch)  # logged in: still reported, model_url unchanged
+        code, checks, _ = doctor_checks(capsys, *argv)
+        assert code == 0 and checks["login"]["status"] == "ok"
+        key_path = home / "config" / "inkling-robo" / "key"
+        key_path.write_text("ink_stale\n")
+        code, checks, _ = doctor_checks(capsys, *argv)
+        assert code == 0
+        assert checks["login"]["status"] == "skip" and "rejected" in checks["login"]["detail"]
+
+
+def test_doctor_login_check_when_the_gateway_is_down_only_warns(
+    capsys, home, monkeypatch, healthy_setup
+):
+    monkeypatch.setenv("INKLING_GATEWAY_URL", "http://127.0.0.1:9")
+    key_path = home / "config" / "inkling-robo" / "key"
+    key_path.parent.mkdir(parents=True)
+    key_path.write_text("ink_whatever\n")
+    _, checks, _ = doctor_checks(capsys)  # the gateway being down fails model_url, not login
+    assert checks["login"]["status"] == "warn" and "unreachable" in checks["login"]["detail"]
 
 
 # --- login ---------------------------------------------------------------------------------------

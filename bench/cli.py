@@ -281,7 +281,7 @@ def cmd_compare(args: argparse.Namespace) -> Result:
 
 def cmd_doctor(args: argparse.Namespace) -> Result:
     config = get_config()
-    checks = doctor.run_checks(args.agent, config.resolve_model_url(args.model_url))
+    checks = doctor.run_checks(args.agent, config.resolve_model_url(args.model_url), config)
     failed = [c.name for c in checks if c.status == doctor.FAIL]
     payload = {"ok": not failed, "failed": failed, "checks": doctor.as_dicts(checks)}
     text = doctor.format_checks(checks)

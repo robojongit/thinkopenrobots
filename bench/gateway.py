@@ -108,6 +108,11 @@ class Gateway:
     def login_poll(self, login_id: str) -> dict[str, Any]:
         return self.call("POST", "/v1/login/poll", body={"login_id": login_id}, auth=False)
 
+    def me(self) -> dict[str, Any]:
+        """The account the key belongs to: a cheap authenticated call, it does not wake the
+        shared model."""
+        return self.call("GET", "/v1/me")
+
     def submit(self, archive: bytes) -> dict[str, Any]:
         return self.call("POST", "/v1/submissions", data=archive)
 
