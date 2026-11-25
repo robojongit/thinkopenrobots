@@ -274,6 +274,12 @@
       bar
     ];
   }
+  /* "17 Dec 2026, 11:35:00" as two parts, so the column wraps the same way on every row */
+  function timeNode(d) {
+    var full = timeFmt.format(d), cut = full.lastIndexOf(", ");
+    var parts = cut > 0 ? [full.slice(0, cut + 2), full.slice(cut + 2)] : [full];
+    return el("time", { datetime: d.toISOString() }, parts.map(function (t) { return el("span", { text: t }); }));
+  }
   function bandNodes(r) { return [el("span", { "class": "band-badge", text: String(r.band) })]; }
 
   function renderStandings(data, showAll) {
@@ -309,7 +315,7 @@
           { cls: "cell-tokens", nodes: tk ? [el("span", { "class": "pips", "aria-hidden": "true" }, [1, 2, 3].map(function (n) {
             return el("span", { "class": n <= tk[1] ? "on" : "" });
           })), el("span", { text: tk[0] })] : ["–"] },
-          { cls: "cell-date", nodes: [el("time", { datetime: d.toISOString(), text: timeFmt.format(d) })] },
+          { cls: "cell-date", nodes: [timeNode(d)] },
           { cls: "cell-commit", nodes: [r.url ? link(r.url, r.id || "commit", { "aria-label": "Commit " + (r.id || "") + " by " + name }) : "–"] }
         ];
       }
