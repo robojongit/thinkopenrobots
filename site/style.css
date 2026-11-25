@@ -354,29 +354,6 @@ pre.prompt:focus-visible { outline-color: var(--ink); outline-offset: 3px; }
 .join-links { margin: 0; font-size: 16px; line-height: 1.5; }
 .join-links a { font-weight: 700; }
 
-/* ---------- rules page ---------- */
-.page-hero { border-bottom: 2px solid var(--ink); }
-.page-hero .wrap { padding-top: clamp(40px, 6vw, 80px); padding-bottom: clamp(40px, 6vw, 72px); display: flex; flex-direction: column; gap: 24px; }
-.page-hero .lead { max-width: 62ch; }
-.toc { margin: 0; font-family: var(--mono); font-size: 14px; line-height: 1.7; color: var(--muted); max-width: 90ch; }
-.toc a { color: var(--ink); font-weight: 700; }
-.prose { padding-top: 8px; padding-bottom: clamp(56px, 7vw, 104px); }
-.prose > * { max-width: 760px; }
-.prose h2 { margin: 56px 0 16px; padding-top: 24px; border-top: 2px solid var(--ink); font-weight: 800; font-stretch: 125%; font-size: clamp(28px, 3vw, 40px); line-height: 1.05; letter-spacing: -0.02em; scroll-margin-top: 16px; }
-.prose h3 { margin: 28px 0 8px; font-size: 20px; font-weight: 800; font-stretch: 115%; line-height: 1.2; scroll-margin-top: 16px; }
-.prose p, .prose li { line-height: 1.6; }
-.prose p { margin: 0 0 14px; }
-.prose ul { margin: 0 0 14px; padding-left: 0; list-style: none; }
-.prose li { position: relative; margin: 10px 0; padding-left: 24px; }
-.prose li::before { content: ""; position: absolute; left: 2px; top: 0.62em; width: 8px; height: 8px; background: var(--ink); }
-.prose strong { font-weight: 800; }
-.prose code { -webkit-box-decoration-break: clone; box-decoration-break: clone; font-family: var(--mono); font-size: 0.86em; background: var(--white); border: 1px solid var(--rule); padding: 1px 5px; overflow-wrap: anywhere; }
-.prose .meta { color: var(--muted); font-size: 15px; }
-.prose .guide { box-sizing: border-box; max-width: 760px; border: 2px solid var(--ink); background: var(--white); padding: 4px 24px 12px; margin-top: 20px; }
-.prose .guide h3 { margin-top: 24px; }
-.prose .ready { box-sizing: border-box; margin-top: 32px; padding: 18px 20px; background: var(--yellow); border: 2px solid var(--ink); color: var(--ink); font-size: 17px; }
-.prose .ready a { font-weight: 700; }
-
 /* ---------- narrow screens (from the phone layout) ---------- */
 @media (max-width: 760px) {
   .pipe { grid-template-columns: minmax(0, 1fr); gap: 56px; }
@@ -386,7 +363,6 @@ pre.prompt:focus-visible { outline-color: var(--ink); outline-offset: 3px; }
   .split-labels { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .split-item { padding-right: 0; }
   .infra { grid-template-columns: minmax(0, 1fr); }
-  .prose .guide { padding: 4px 16px 12px; }
 
   /* standings as stacked cards: same table semantics, different layout */
   .table-wrap { overflow: visible; }
