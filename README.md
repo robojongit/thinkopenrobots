@@ -127,7 +127,9 @@ The full rules are on the [rules page](site/rules.html) of the site. In short:
   model to write into its own code. No task-specific scripted solutions, in code or prompts.
 - One GitHub account is one entrant. Up to 3 submissions per account per day, one waiting in the
   queue at a time.
-- Disclose AI help: `agent/NOTES.md` names the model and coding agent you used.
+- Each submission names the coding agent that built it on one line of `agent/NOTES.md`, for
+  example `Coding agent: Claude Code · Fable 5` (or `Coding agent: by hand`). It is shown on the
+  leaderboard next to the submission.
 - Code is open: submissions are public, and you may build on anyone's submitted agent, including
   submitting it as it is.
 - Exploits are disqualified; reporting one is credited.

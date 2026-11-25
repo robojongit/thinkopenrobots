@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from bench.cli import build_parser
+from bench.coding_agent import EXAMPLE, parse_notes
 from bench.exitcodes import ExitCode
 from harness.llm_relay import Budget
 from harness.tasks import TASKS
@@ -160,3 +161,16 @@ def test_rules_guide_is_filled():
 def test_python_examples_parse(name):
     for block in re.findall(r"^```python\n(.*?)^```$", DOCS[name], re.S | re.M):
         compile(block, name, "exec")
+
+
+def test_docs_state_the_coding_agent_line():
+    assert (
+        "coding agent that built it, in <code>agent/NOTES.md</code>; it is shown on the " in RULES
+    )
+    for name, text in DOCS.items():
+        assert "Disclose AI help" not in text, name
+        flat = " ".join(text.split())
+        assert f"`{EXAMPLE}`" in flat and "shown on the leaderboard" in flat, name
+        for line in re.findall(r"`(Coding agent: [^`<]+)`", text):  # not the <name> template
+            assert parse_notes(line + "\n"), (name, line)
+    assert "Disclose AI help" not in RULES
