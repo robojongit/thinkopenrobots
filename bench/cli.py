@@ -61,7 +61,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--model-url", help="OpenAI-compatible base URL (default: from config)")
     p.add_argument("--model", help="model name sent to the server (default: from config)")
     p.add_argument("--workers", type=int, default=2, help="parallel episodes (default 2)")
-    p.add_argument("--video", action=argparse.BooleanOptionalAction, default=False)
+    p.add_argument(
+        "--video",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="write video.mp4 in each episode folder (about 4x slower); with --remote, for at"
+        f" most {remote.REMOTE_MAX_VIDEOS} episodes of the run",
+    )
     p.add_argument("--out", type=Path, help="run folder (default runs/<timestamp>); resumes it")
     p.add_argument(
         "--remote",
@@ -214,7 +220,6 @@ def train_on_box(args: argparse.Namespace, tasks: list[str] | None, seed_list) -
         "--budget-calls": args.budget_calls,
         "--budget-tokens": args.budget_tokens,
         "--budget-wall-s": args.budget_wall_s,
-        "--video": args.video or None,
         "--sandbox container": args.sandbox == "container" or None,
     }
     used = [flag for flag, value in local_only.items() if value is not None]
@@ -240,8 +245,11 @@ def train_on_box(args: argparse.Namespace, tasks: list[str] | None, seed_list) -
         seeds = train_seeds(tasks, args.seeds or remote.REMOTE_DEFAULT_SEEDS)
     remote.remote_plan(seeds)
     out = args.out or Path("runs") / datetime.now().strftime("%Y%m%d-%H%M%S")
-    report = remote.train_remote(get_config(), args.agent, seeds, out)
-    return report, train.format_report(report), train.exit_code(report)
+    report = remote.train_remote(get_config(), args.agent, seeds, out, video=args.video)
+    text = train.format_report(report)
+    if "videos" in report:
+        text += "\n" + remote.format_videos(report)
+    return report, text, train.exit_code(report)
 
 
 def cmd_view(args: argparse.Namespace) -> Result:

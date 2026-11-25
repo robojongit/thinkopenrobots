@@ -123,7 +123,9 @@ class Gateway:
     def pick(self, ids: list[str]) -> dict[str, Any]:
         return self.call("POST", "/v1/picks", body={"ids": ids})
 
-    def train(self, archive: bytes, plan: dict[str, list[int]]) -> dict[str, Any]:
+    def train(self, archive: bytes, plan: dict[str, Any]) -> dict[str, Any]:
+        """``plan``: ``{task: [seeds]}``, or ``{"version": 2, "seeds": {...}, "video": {task:
+        [seeds]}}`` to record some of the episodes."""
         params = {"plan": json.dumps(plan, separators=(",", ":"))}
         return self.call("POST", "/v1/train", data=archive, params=params)
 

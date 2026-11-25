@@ -96,6 +96,10 @@ def build_trace(ep: Episode, full: bool = False) -> dict[str, Any]:
         log = (ep.path / "agent.log").read_text()
     except OSError:
         log = ""
+    try:
+        video_note = (ep.path / "video_note.txt").read_text(errors="replace").strip()[:600]
+    except OSError:
+        video_note = None
     return {
         "task": ep.task,
         "seed": ep.seed,
@@ -105,6 +109,8 @@ def build_trace(ep: Episode, full: bool = False) -> dict[str, Any]:
         "events": events,
         "harness_errors": read_json(ep.path / "errors.json", []),
         "agent_log": clip(log, LOG_CHARS, full),
+        "video": str(ep.path / "video.mp4") if (ep.path / "video.mp4").is_file() else None,
+        "video_note": video_note,
     }
 
 
@@ -115,7 +121,8 @@ def indent(text: str, prefix: str = "  ") -> str:
 def summary_line(ep: Episode) -> str:
     r = ep.result or {}
     detail = f" ended={r['ended']} calls={r['calls']} tokens={r['tokens']}" if r else ""
-    return f"{ep.task} seed {ep.seed}: {outcome(ep)}{detail}"
+    video = f" video={ep.path / 'video.mp4'}" if (ep.path / "video.mp4").is_file() else ""
+    return f"{ep.task} seed {ep.seed}: {outcome(ep)}{detail}{video}"
 
 
 def render_trace(t: dict[str, Any]) -> str:
@@ -129,6 +136,10 @@ def render_trace(t: dict[str, Any]) -> str:
     lines = [head]
     if t["problem"]:
         lines.append(f"problem: {t['problem']}")
+    if t.get("video"):
+        lines.append(f"video: {t['video']}")
+    for note in (t.get("video_note") or "").splitlines():
+        lines.append(f"video note: {note}")
     for e in t["events"]:
         if e["type"] == "reply":
             lines.append(

@@ -52,6 +52,9 @@ Do not clone with `--recurse-submodules`: it fetches CaP-X submodules you do not
   transcript, the code that ran and its errors) and a row in `results.tsv`. Rerunning with the
   same `--out` resumes. `--tasks`, `--seeds N`, `--seed-list "1-50"`, `--workers`, and
   `--budget-*` choose what runs; `bench train --help` lists them all.
+- `bench train --video` also writes `video.mp4` into each episode folder, at about 4x the time;
+  use it for the few episodes you want to watch (`--tasks <task> --seed-list <seed>`). With
+  `--remote`, at most 10 episodes of a run are recorded. Submissions never return videos.
 - `bench view` prints readable traces; `--failures` shows only failed episodes.
 - `bench compare` compares two runs on the episodes they share and gives a 95% interval and a
   verdict: `real gain`, `no clear difference` or `real loss`.

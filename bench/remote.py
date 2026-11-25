@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from harness.llm_relay import DEFAULT_MODEL
+from harness.tasks import TASKS
 
 from .archive import ArchiveProblem, build
 from .coding_agent import CodingAgentProblem, parse_notes
@@ -27,7 +28,10 @@ POLL_S = 10.0
 MAX_WAIT_S = 6 * 3600.0
 REMOTE_MAX_EPISODES = 50
 REMOTE_DEFAULT_SEEDS = 7  # 7 tasks x 7 seeds = 49 episodes, one remote run
-RESULTS_MAX_BYTES = 2 * 1024**3
+REMOTE_MAX_VIDEOS = 10  # episodes of one remote run recorded with --video
+REMOTE_VIDEO_MAX_BYTES = 8 * 1024**2  # one video; the shared box drops larger ones
+RESULTS_MAX_BYTES = 2 * 1024**3  # the episode folders, videos not counted
+VIDEO, VIDEO_NOTE = "video.mp4", "video_note.txt"
 FINISHED = ("done", "timed_out", "infra_error")
 
 Result = tuple[dict[str, Any], str, ExitCode]
@@ -213,11 +217,14 @@ def status(config: Config, ident: str | None) -> Result:
     try:
         if ident and ident.startswith("t"):
             run = gw.train_run(ident)
-            return (
-                run,
-                _row(run) + (f"\nresults: {run['results']}" if run.get("results") else ""),
-                ExitCode.OK,
-            )
+            text = _row(run)
+            if run.get("videos"):
+                video = run.get("video") or {}
+                video = {t: video[t] for t in TASKS if t in video}  # task-table order
+                text += f"\nvideos: {run['videos']} ({episode_list(video)})"
+            if run.get("results"):
+                text += f"\nresults: {run['results']}"
+            return run, text, ExitCode.OK
         if ident:
             sub = gw.submission(ident)
             text = _row(sub)
@@ -255,6 +262,25 @@ def pick(config: Config, ids: list[str]) -> Result:
 
 
 # --- remote training runs ------------------------------------------------------------------------
+def choose_videos(
+    seeds: dict[str, list[int]], cap: int = REMOTE_MAX_VIDEOS
+) -> dict[str, list[int]]:
+    """The episodes a remote ``--video`` run records: at most ``cap``, spread across the tasks in
+    plan order (each task's first seed, then each task's second seed, ...)."""
+    chosen: dict[str, list[int]] = {}
+    for i in range(max(map(len, seeds.values()), default=0)):
+        for task, ss in seeds.items():
+            if i < len(ss) and sum(map(len, chosen.values())) < cap:
+                chosen.setdefault(task, []).append(ss[i])
+    return {t: chosen[t] for t in seeds if t in chosen}
+
+
+def episode_list(plan: dict[str, list[int]]) -> str:
+    return "; ".join(
+        f"{t} seed{'s' * (len(ss) > 1)} {', '.join(map(str, ss))}" for t, ss in plan.items()
+    )
+
+
 def remote_plan(seeds: dict[str, list[int]]) -> int:
     total = sum(len(v) for v in seeds.values())
     if total > REMOTE_MAX_EPISODES:
@@ -302,10 +328,15 @@ def _wait(gw: Gateway, run_id: str) -> dict[str, Any]:
         sleep(POLL_S)
 
 
-def extract_results(archive: Path, out: Path, plan: dict[str, list[int]]) -> int:
+def extract_results(
+    archive: Path, out: Path, plan: dict[str, list[int]], video: dict[str, list[int]] | None = None
+) -> int:
     """Unpack downloaded episode folders into ``out``, accepting only regular files and folders
-    under ``<task>/seed_<seed>/`` of planned episodes. Returns the number of files."""
+    under ``<task>/seed_<seed>/`` of planned episodes, and a ``video.mp4`` (at most
+    ``REMOTE_VIDEO_MAX_BYTES``) only in an episode ``video`` asked for. Returns the number of
+    files."""
     allowed = {f"{t}/seed_{s}" for t, seeds in plan.items() for s in seeds}
+    filmed = {f"{t}/seed_{s}" for t, seeds in (video or {}).items() for s in seeds}
     incoming = out / ".incoming"
     shutil.rmtree(incoming, ignore_errors=True)
     files, total = 0, 0
@@ -333,9 +364,15 @@ def extract_results(archive: Path, out: Path, plan: dict[str, list[int]]) -> int
                 if m.isdir():
                     target.mkdir(parents=True, exist_ok=True)
                     continue
-                total += m.size
-                if total > RESULTS_MAX_BYTES:
-                    raise CliError(ExitCode.INFRA, "results larger than expected")
+                if parts[-1] == VIDEO and len(parts) == 3:
+                    if "/".join(parts[:2]) not in filmed or m.size > REMOTE_VIDEO_MAX_BYTES:
+                        raise CliError(
+                            ExitCode.INFRA, f"unexpected video in the results: {m.name!r}"
+                        )
+                else:
+                    total += m.size
+                    if total > RESULTS_MAX_BYTES:
+                        raise CliError(ExitCode.INFRA, "results larger than expected")
                 target.parent.mkdir(parents=True, exist_ok=True)
                 src = tar.extractfile(m)
                 with target.open("wb") as f:
@@ -355,10 +392,32 @@ def extract_results(archive: Path, out: Path, plan: dict[str, list[int]]) -> int
     return files
 
 
-def train_remote(config: Config, agent_dir: Path, seeds: dict[str, list[int]], out: Path) -> dict:
+def videos_of(out: Path, plan: dict[str, list[int]]) -> tuple[list[str], list[str]]:
+    """(paths of the videos in ``out`` for the planned episodes, "task seed N: why not" for
+    those that have a note instead)."""
+    paths, notes = [], []
+    for task, seeds in plan.items():
+        for seed in seeds:
+            folder = out / task / f"seed_{seed}"
+            if (folder / VIDEO).is_file():
+                paths.append(str(folder / VIDEO))
+            elif (folder / VIDEO_NOTE).is_file():
+                why = (folder / VIDEO_NOTE).read_text(errors="replace").strip().splitlines()
+                notes.append(f"{task} seed {seed}: {why[-1][:300] if why else 'no video'}")
+    return paths, notes
+
+
+def train_remote(
+    config: Config,
+    agent_dir: Path,
+    seeds: dict[str, list[int]],
+    out: Path,
+    video: bool = False,
+) -> dict:
     """Run the plan on the shared box, download the episode folders into ``out`` and score them
     exactly as a local run. Rerunning with the same ``out`` resumes: it waits for a run already
-    submitted, or submits only the episodes still missing."""
+    submitted, or submits only the episodes still missing. With ``video``, up to
+    ``REMOTE_MAX_VIDEOS`` episodes (``choose_videos``) come back with ``video.mp4``."""
     gw = gateway_for(config)
     opts = TrainOptions(
         seeds=seeds,
@@ -379,13 +438,25 @@ def train_remote(config: Config, agent_dir: Path, seeds: dict[str, list[int]], o
         missing = {t: ss for t, ss in missing.items() if ss}
         if missing:
             archive = _archive(agent_dir)
+            filmed = choose_videos(missing) if video else {}
+            if filmed:
+                n, total = sum(map(len, filmed.values())), sum(map(len, missing.values()))
+                say(f"video for {n} of {total} episodes: {episode_list(filmed)}")
+            body = {"version": 2, "seeds": missing, "video": filmed} if filmed else missing
             try:
-                run = gw.train(archive.data, missing)
+                run = gw.train(archive.data, body)
             except GatewayError as e:
+                if filmed and e.code == "bad_plan":
+                    raise CliError(
+                        ExitCode.NOT_AVAILABLE,
+                        f"the shared box refused the video request ({e.message}); "
+                        "run again without --video",
+                    ) from None
                 raise cli_error(e) from None
             state = {
                 "id": run["id"],
                 "plan": missing,
+                "video": filmed,
                 "downloaded": False,
                 "submitted": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             }
@@ -406,11 +477,21 @@ def train_remote(config: Config, agent_dir: Path, seeds: dict[str, list[int]], o
         tmp = out / ".results.tar.gz"
         try:
             gw.train_results(state["id"], tmp, RESULTS_MAX_BYTES)
-            extract_results(tmp, out, state["plan"])
+            extract_results(tmp, out, state["plan"], state.get("video"))
         except GatewayError as e:
             raise cli_error(e) from None
         finally:
             tmp.unlink(missing_ok=True)
         state["downloaded"] = True
         state_path.write_text(json.dumps(state, indent=1))
-    return finish_run(opts, planned)
+    report = finish_run(opts, planned)
+    if video or state.get("video"):
+        report["videos"], report["video_notes"] = videos_of(out, seeds)
+    return report
+
+
+def format_videos(report: dict[str, Any]) -> str:
+    """Where a remote run's videos are, and why the missing ones are missing."""
+    lines = [f"videos ({len(report['videos'])}):"] + [f"  {p}" for p in report["videos"]]
+    lines += [f"  no video for {note}" for note in report["video_notes"]]
+    return "\n".join(lines)
