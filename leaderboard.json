@@ -1,6 +1,6 @@
 {
  "schema_version": 1,
- "generated_at": "2026-11-25T21:58:14Z",
+ "generated_at": "2026-11-26T18:41:46Z",
  "entries": [
   {
    "id": "s0001",
@@ -23,6 +23,17 @@
    "ci_high": 64.41,
    "tokens_bucket": "10k-30k",
    "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/e60141d68eadf1c03ebf83d378b998b1e8766251",
+   "coding_agent": "Claude Code \u00b7 Opus 5.5"
+  },
+  {
+   "id": "s0010",
+   "account": "robojongit",
+   "submitted_at": "2026-11-26T17:25:14Z",
+   "score": 61.43,
+   "ci_low": 56.31,
+   "ci_high": 66.55,
+   "tokens_bucket": "10k-30k",
+   "commit_url": "https://github.com/robojongit/thinkopenrobots/commit/414eac85adc12872fe8ec899ae4f4542355ab3e0",
    "coding_agent": "Claude Code \u00b7 Opus 5.5"
   }
  ]
