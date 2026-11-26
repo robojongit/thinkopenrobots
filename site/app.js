@@ -656,6 +656,100 @@
   window.addEventListener("resize", syncScrollers);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(syncScrollers);
 
+  /* ---------- videos ---------- */
+
+  /* The clips load nothing until needed: the poster when the clip comes near the screen, the
+   * video when it plays. They play muted while at least half in view, unless the visitor paused
+   * them; a click or tap toggles play. With reduced motion (or no IntersectionObserver) nothing
+   * plays by itself and each clip keeps the browser's own controls. */
+  var PLAY_ICON = "M4 2 L14 8 L4 14 Z";
+  var PAUSE_ICON = "M3 2 H7 V14 H3 Z M9 2 H13 V14 H9 Z";
+  var FULL_ICON = "M1 6 V1 H6 M10 1 H15 V6 M15 10 V15 H10 M6 15 H1 V10";
+
+  function icon(d, stroked) {
+    var path = sv("path", stroked ? { d: d, fill: "none", stroke: "currentColor", "stroke-width": "2.5" } : { d: d, fill: "currentColor" });
+    return sv("svg", { width: "16", height: "16", viewBox: "0 0 16 16", "aria-hidden": "true" }, [path]);
+  }
+  function inFullscreen() { return document.fullscreenElement || document.webkitFullscreenElement; }
+
+  function setupClips() {
+    var videos = Array.prototype.slice.call(document.querySelectorAll(".clip video"));
+    if (!videos.length) return;
+    var hasIO = "IntersectionObserver" in window;
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function loadPoster(v) {
+      var p = v.getAttribute("data-poster");
+      if (p && !v.hasAttribute("poster")) v.setAttribute("poster", p);
+    }
+    if (!hasIO) { videos.forEach(loadPoster); return; }
+    var near = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) { if (en.isIntersecting) { loadPoster(en.target); near.unobserve(en.target); } });
+    }, { rootMargin: "600px 0px" });
+    videos.forEach(function (v) { near.observe(v); });
+    if (reduce) return;
+
+    document.querySelector(".clips").classList.add("enhanced");
+    var clips = videos.map(function (v) {
+      var name = v.closest(".clip").querySelector(".clip-name").textContent;
+      var c = { v: v, inView: false, userPaused: false };
+      v.muted = true;
+      v.removeAttribute("controls");
+      var playIcon = icon(PLAY_ICON), path = playIcon.firstChild;
+      var playBtn = el("button", { type: "button", "class": "clip-btn" }, [playIcon]);
+      var fullBtn = el("button", { type: "button", "class": "clip-btn", "aria-label": "Full screen: " + name }, [icon(FULL_ICON, true)]);
+      v.parentNode.appendChild(el("div", { "class": "clip-ctl" }, [playBtn, fullBtn]));
+
+      function show() {
+        path.setAttribute("d", v.paused ? PLAY_ICON : PAUSE_ICON);
+        playBtn.setAttribute("aria-label", (v.paused ? "Play: " : "Pause: ") + name);
+      }
+      function play() { var p = v.play(); if (p && p.catch) p.catch(function () {}); }
+      c.sync = function () {
+        var want = c.inView && !document.hidden && !c.userPaused;
+        if (want && v.paused) play();
+        else if (!want && !v.paused && !inFullscreen()) v.pause();
+      };
+      function toggle() {
+        if (v.paused) { c.userPaused = false; play(); } else { c.userPaused = true; v.pause(); }
+      }
+      v.addEventListener("play", show);
+      v.addEventListener("pause", show);
+      v.addEventListener("click", function () { if (!v.hasAttribute("controls")) toggle(); });
+      playBtn.addEventListener("click", toggle);
+      fullBtn.addEventListener("click", function () {
+        v.setAttribute("controls", "");
+        var req = v.requestFullscreen || v.webkitRequestFullscreen;
+        if (req) { var p = req.call(v); if (p && p.catch) p.catch(function () { v.removeAttribute("controls"); }); }
+        else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+        c.userPaused = false;
+        play();
+      });
+      /* iOS Safari plays fullscreen in its own player */
+      v.addEventListener("webkitendfullscreen", function () { v.removeAttribute("controls"); c.sync(); });
+      show();
+      return c;
+    });
+
+    function syncAll() { clips.forEach(function (c) { c.sync(); }); }
+    function leftFullscreen() {
+      if (inFullscreen()) return;
+      clips.forEach(function (c) { c.v.removeAttribute("controls"); });
+      syncAll();
+    }
+    document.addEventListener("fullscreenchange", leftFullscreen);
+    document.addEventListener("webkitfullscreenchange", leftFullscreen);
+    document.addEventListener("visibilitychange", syncAll);
+    var seen = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        clips.forEach(function (c) {
+          if (c.v === en.target) { c.inView = en.intersectionRatio >= 0.5; c.sync(); }
+        });
+      });
+    }, { threshold: [0, 0.5] });
+    videos.forEach(function (v) { seen.observe(v); });
+  }
+
   /* ---------- boot ---------- */
 
   function boot() {
@@ -664,6 +758,7 @@
       if (repo) a.setAttribute("href", repo + (a.getAttribute("data-repo") || ""));
     });
     if ($("standings-table")) { renderJoin(); load(); }
+    setupClips();
     syncScrollers();
   }
   boot();

@@ -34,3 +34,18 @@ def test_fonts_ship_with_their_licences():
     assert len(fonts) == 2
     licences = [p.read_text() for p in (SITE / "fonts").glob("OFL-*.txt")]
     assert len(licences) == 2 and all("SIL Open Font License" in t for t in licences)
+
+
+def test_videos_are_local_small_and_have_posters():
+    html = (SITE / "index.html").read_text()
+    sources = re.findall(r'<source src="(videos/[^"]+\.mp4)"', html)
+    posters = re.findall(r'data-poster="(videos/[^"]+\.jpg)"', html)
+    assert len(sources) == len(posters) == 7
+    assert 'href="#videos"' in html and 'id="videos"' in html
+    total = 0
+    for ref in sources + posters:
+        path = SITE / ref
+        assert path.is_file(), f"{ref} is missing"
+        total += path.stat().st_size
+    assert all((SITE / s).stat().st_size < 1_500_000 for s in sources)
+    assert total < 10_000_000
