@@ -603,11 +603,12 @@
     $("standings-body").hidden = false;
     $("standings-controls").hidden = false;
     renderStandings(data, showAll.checked);
-    showAll.onchange = function () { renderStandings(data, showAll.checked); };
+    showAll.onchange = function () { renderStandings(data, showAll.checked); syncScrollers(); };
     renderFinal(data.final);
     renderChart(data.entries);
     showSampleTags(sample);
     setStatus(null, "");
+    syncScrollers();
   }
 
   function load() {
@@ -630,6 +631,31 @@
       });
   }
 
+  /* ---------- horizontal scrollers ---------- */
+
+  /* The standings table and, on narrow screens, the diagrams scroll sideways inside their own box.
+   * While one actually scrolls it is a keyboard-focusable region, and its parent is marked
+   * more-left / more-right so CSS shades the edge where the content continues. */
+  function syncScroller(s) {
+    var max = s.scrollWidth - s.clientWidth, on = max > 1, label = s.getAttribute("data-scroll-label");
+    if (on) s.setAttribute("tabindex", "0"); else s.removeAttribute("tabindex");
+    if (label && on) { s.setAttribute("role", "region"); s.setAttribute("aria-label", label); }
+    else if (label) { s.removeAttribute("role"); s.removeAttribute("aria-label"); }
+    s.parentNode.classList.toggle("more-left", on && s.scrollLeft > 1);
+    s.parentNode.classList.toggle("more-right", on && s.scrollLeft < max - 1);
+  }
+  function syncScrollers() {
+    Array.prototype.forEach.call(document.querySelectorAll(".scroller, .table-wrap"), function (s) {
+      if (!s.hasAttribute("data-scroll-watched")) {
+        s.setAttribute("data-scroll-watched", "");
+        s.addEventListener("scroll", function () { syncScroller(s); }, { passive: true });
+      }
+      syncScroller(s);
+    });
+  }
+  window.addEventListener("resize", syncScrollers);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(syncScrollers);
+
   /* ---------- boot ---------- */
 
   function boot() {
@@ -638,6 +664,7 @@
       if (repo) a.setAttribute("href", repo + (a.getAttribute("data-repo") || ""));
     });
     if ($("standings-table")) { renderJoin(); load(); }
+    syncScrollers();
   }
   boot();
 })();

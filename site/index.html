@@ -19,10 +19,10 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="favicon.svg?v=20261125c2" type="image/svg+xml">
   <link rel="preload" href="fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="style.css?v=20261126b">
+  <link rel="stylesheet" href="style.css?v=20261126c">
   <script src="config.js?v=20261125c1"></script>
   <script src="motion.js?v=20261125c1" defer></script>
-  <script src="app.js?v=20261125c1" defer></script>
+  <script src="app.js?v=20261126c" defer></script>
 </head>
 <body>
 <a class="skip" href="#leaderboard">Skip to the leaderboard</a>
@@ -133,134 +133,138 @@
     <div class="wrap pad-section">
       <h2 id="how-h" class="title">How it works</h2>
 
-      <div class="pipe-wrap" data-loop>
-        <div class="pipe">
-          <div class="card">
-            <div class="card-head bg-yellow">
-              <span class="eyebrow">You change this</span>
-              <svg aria-hidden="true" width="28" height="28" viewBox="0 0 28 28"><rect x="2" y="2" width="24" height="24" fill="none" stroke="#11141B" stroke-width="2.5"/><rect x="9" y="9" width="10" height="10" fill="#11141B"/></svg>
-            </div>
-            <div class="card-body">
-              <h3>Your harness</h3>
-              <ul class="chips">
-                <li>the prompts</li>
-                <li>the control loop</li>
-                <li>how the scene is shown to it</li>
-                <li>how it checks and retries its own work</li>
-              </ul>
-            </div>
-            <svg class="arrow-h h-only" aria-hidden="true" width="44" height="16" viewBox="0 0 44 16"><path d="M0 8 H34" stroke="#11141B" stroke-width="3" fill="none"/><path d="M32 2 L44 8 L32 14 Z" fill="#11141B"/><rect class="token" x="-4" y="3" width="10" height="10"/></svg>
-            <svg class="arrow-v v-only" aria-hidden="true" width="16" height="44" viewBox="0 0 16 44"><path d="M8 0 V34" stroke="#11141B" stroke-width="3" fill="none"/><path d="M2 32 L8 44 L14 32 Z" fill="#11141B"/><rect class="token" x="3" y="-4" width="10" height="10"/></svg>
-          </div>
+      <div class="scroll-frame">
+        <div class="scroller" data-scroll-label="How it works diagram">
+          <div class="pipe-wrap" data-loop>
+            <div class="pipe">
+              <div class="card">
+                <div class="card-head bg-yellow">
+                  <span class="eyebrow">You change this</span>
+                  <svg aria-hidden="true" width="28" height="28" viewBox="0 0 28 28"><rect x="2" y="2" width="24" height="24" fill="none" stroke="#11141B" stroke-width="2.5"/><rect x="9" y="9" width="10" height="10" fill="#11141B"/></svg>
+                </div>
+                <div class="card-body">
+                  <h3>Your harness</h3>
+                  <ul class="chips">
+                    <li>the prompts</li>
+                    <li>the control loop</li>
+                    <li>how the scene is shown to it</li>
+                    <li>how it checks and retries its own work</li>
+                  </ul>
+                </div>
+                <svg class="arrow-h" aria-hidden="true" width="44" height="16" viewBox="0 0 44 16"><path d="M0 8 H34" stroke="#11141B" stroke-width="3" fill="none"/><path d="M32 2 L44 8 L32 14 Z" fill="#11141B"/><rect class="token" x="-4" y="3" width="10" height="10"/></svg>
+              </div>
 
-          <div class="card">
-            <div class="card-head bg-blue">
-              <span class="eyebrow">Same for everyone</span>
-              <svg aria-hidden="true" width="28" height="28" viewBox="0 0 28 28"><rect x="5" y="5" width="18" height="18" fill="#FFFFFF" stroke="#11141B" stroke-width="2.5"/></svg>
-            </div>
-            <div class="card-body">
-              <h3>Inkling 2 Mini</h3>
-              <p>By Thinking Machines. Your harness prompts it to write Python.</p>
-            </div>
-            <svg class="arrow-h h-only" aria-hidden="true" width="44" height="16" viewBox="0 0 44 16"><path d="M0 8 H34" stroke="#11141B" stroke-width="3" fill="none"/><path d="M32 2 L44 8 L32 14 Z" fill="#11141B"/><rect class="token" x="-4" y="3" width="10" height="10"/></svg>
-            <svg class="arrow-v v-only" aria-hidden="true" width="16" height="44" viewBox="0 0 16 44"><path d="M8 0 V34" stroke="#11141B" stroke-width="3" fill="none"/><path d="M2 32 L8 44 L14 32 Z" fill="#11141B"/><rect class="token" x="3" y="-4" width="10" height="10"/></svg>
-          </div>
+              <div class="card">
+                <div class="card-head bg-blue">
+                  <span class="eyebrow">Same for everyone</span>
+                  <svg aria-hidden="true" width="28" height="28" viewBox="0 0 28 28"><rect x="5" y="5" width="18" height="18" fill="#FFFFFF" stroke="#11141B" stroke-width="2.5"/></svg>
+                </div>
+                <div class="card-body">
+                  <h3>Inkling 2 Mini</h3>
+                  <p>By Thinking Machines. Your harness prompts it to write Python.</p>
+                </div>
+                <svg class="arrow-h" aria-hidden="true" width="44" height="16" viewBox="0 0 44 16"><path d="M0 8 H34" stroke="#11141B" stroke-width="3" fill="none"/><path d="M32 2 L44 8 L32 14 Z" fill="#11141B"/><rect class="token" x="-4" y="3" width="10" height="10"/></svg>
+              </div>
 
-          <div class="card">
-            <div class="card-head">
-              <span class="eyebrow">Written by the model</span>
-              <svg aria-hidden="true" width="28" height="28" viewBox="0 0 28 28"><rect x="2" y="6" width="20" height="3" fill="#11141B"/><rect x="7" y="12" width="19" height="3" fill="#11141B"/><rect x="7" y="18" width="13" height="3" fill="#11141B"/></svg>
-            </div>
-            <div class="card-body">
-              <h3>Python</h3>
-              <p>The code that drives the simulated robot arms.</p>
-            </div>
-            <svg class="arrow-h h-only" aria-hidden="true" width="44" height="16" viewBox="0 0 44 16"><path d="M0 8 H34" stroke="#11141B" stroke-width="3" fill="none"/><path d="M32 2 L44 8 L32 14 Z" fill="#11141B"/><rect class="token" x="-4" y="3" width="10" height="10"/></svg>
-            <svg class="arrow-v v-only" aria-hidden="true" width="16" height="44" viewBox="0 0 16 44"><path d="M8 0 V34" stroke="#11141B" stroke-width="3" fill="none"/><path d="M2 32 L8 44 L14 32 Z" fill="#11141B"/><rect class="token" x="3" y="-4" width="10" height="10"/></svg>
-          </div>
+              <div class="card">
+                <div class="card-head">
+                  <span class="eyebrow">Written by the model</span>
+                  <svg aria-hidden="true" width="28" height="28" viewBox="0 0 28 28"><rect x="2" y="6" width="20" height="3" fill="#11141B"/><rect x="7" y="12" width="19" height="3" fill="#11141B"/><rect x="7" y="18" width="13" height="3" fill="#11141B"/></svg>
+                </div>
+                <div class="card-body">
+                  <h3>Python</h3>
+                  <p>The code that drives the simulated robot arms.</p>
+                </div>
+                <svg class="arrow-h" aria-hidden="true" width="44" height="16" viewBox="0 0 44 16"><path d="M0 8 H34" stroke="#11141B" stroke-width="3" fill="none"/><path d="M32 2 L44 8 L32 14 Z" fill="#11141B"/><rect class="token" x="-4" y="3" width="10" height="10"/></svg>
+              </div>
 
-          <div class="card">
-            <div class="card-head bg-green">
-              <span class="eyebrow">Runs only that code</span>
-              <svg aria-hidden="true" width="28" height="28" viewBox="0 0 28 28"><path d="M5 25 L11 12 L24 9" fill="none" stroke="#11141B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="11" cy="12" r="3" fill="#FFC800" stroke="#11141B" stroke-width="2"/><path d="M22 5 V13" stroke="#11141B" stroke-width="2.5"/></svg>
+              <div class="card">
+                <div class="card-head bg-green">
+                  <span class="eyebrow">Runs only that code</span>
+                  <svg aria-hidden="true" width="28" height="28" viewBox="0 0 28 28"><path d="M5 25 L11 12 L24 9" fill="none" stroke="#11141B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="11" cy="12" r="3" fill="#FFC800" stroke="#11141B" stroke-width="2"/><path d="M22 5 V13" stroke="#11141B" stroke-width="2.5"/></svg>
+                </div>
+                <div class="card-body">
+                  <h3>Simulated robot arms</h3>
+                  <p>The robot only runs code the model wrote.</p>
+                </div>
+              </div>
             </div>
-            <div class="card-body">
-              <h3>Simulated robot arms</h3>
-              <p>The robot only runs code the model wrote.</p>
+
+            <div class="loop">
+              <svg class="loop-lines" aria-hidden="true"><line x1="100%" y1="0" x2="100%" y2="100%"/><line x1="100%" y1="100%" x2="0" y2="100%"/><line x1="0" y1="100%" x2="0" y2="0"/></svg>
+              <svg class="loop-head" aria-hidden="true" width="16" height="12" viewBox="0 0 16 12"><path d="M0 12 L8 0 L16 12 Z" fill="#11141B"/></svg>
+              <span class="loop-label">check and retry</span>
             </div>
           </div>
         </div>
-
-        <div class="loop h-only">
-          <svg class="loop-lines" aria-hidden="true"><line x1="100%" y1="0" x2="100%" y2="100%"/><line x1="100%" y1="100%" x2="0" y2="100%"/><line x1="0" y1="100%" x2="0" y2="0"/></svg>
-          <svg class="loop-head" aria-hidden="true" width="16" height="12" viewBox="0 0 16 12"><path d="M0 12 L8 0 L16 12 Z" fill="#11141B"/></svg>
-          <span class="loop-label">check and retry</span>
-        </div>
-        <p class="loop-v v-only">Back to your harness: check and retry.</p>
       </div>
 
-      <div class="facts">
-        <div class="fact fact-tasks">
-          <h3 class="fact-h">Tasks</h3>
-          <div class="fact-body">
-            <p class="fact-lead">Seven RoboSuite tasks in simulation, from the CaP-X benchmark (<a href="https://arxiv.org/abs/2603.22435" rel="noopener noreferrer">paper</a>, <a href="https://capgym.github.io/" rel="noopener noreferrer">project page</a>).</p>
-            <ul class="tasks">
-              <li>
-                <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="6" y="78" width="108" height="4" fill="#11141B"/><rect x="48" y="56" width="22" height="22" fill="none" stroke="#11141B" stroke-width="2" stroke-dasharray="3 3"/><line x1="59" y1="0" x2="59" y2="12" stroke="#11141B" stroke-width="4"/><rect x="42" y="12" width="34" height="5" fill="#11141B"/><rect x="42" y="17" width="5" height="22" fill="#11141B"/><rect x="71" y="17" width="5" height="22" fill="#11141B"/><rect x="48" y="20" width="22" height="22" fill="#D9301A" stroke="#11141B" stroke-width="3"/><path d="M96 66 V30" stroke="#11141B" stroke-width="3" fill="none"/><path d="M90 36 L96 28 L102 36" stroke="#11141B" stroke-width="3" fill="none"/></svg>
-                <span>Cube lifting</span>
-              </li>
-              <li>
-                <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="6" y="78" width="108" height="4" fill="#11141B"/><rect x="44" y="48" width="30" height="30" fill="#00A65A" stroke="#11141B" stroke-width="3"/><rect x="48" y="26" width="22" height="22" fill="#D9301A" stroke="#11141B" stroke-width="3"/><path d="M52 8 L59 15 L66 8" stroke="#11141B" stroke-width="3" fill="none"/></svg>
-                <span>Stacking</span>
-              </li>
-              <li>
-                <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="6" y="78" width="108" height="4" fill="#11141B"/><rect x="14" y="58" width="20" height="20" fill="#00A65A" stroke="#11141B" stroke-width="3"/><rect x="14" y="38" width="20" height="20" fill="#D9301A" stroke="#11141B" stroke-width="3"/><path d="M42 52 H74" stroke="#11141B" stroke-width="3" fill="none"/><path d="M68 46 L76 52 L68 58" stroke="#11141B" stroke-width="3" fill="none"/><rect x="84" y="58" width="20" height="20" fill="#D9301A" stroke="#11141B" stroke-width="3"/><rect x="84" y="38" width="20" height="20" fill="#00A65A" stroke="#11141B" stroke-width="3"/></svg>
-                <span>Restacking</span>
-              </li>
-              <li>
-                <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="6" y="78" width="108" height="4" fill="#11141B"/><rect x="54" y="26" width="10" height="52" fill="#11141B"/><rect x="36" y="40" width="46" height="10" fill="#FFC800" stroke="#11141B" stroke-width="3"/><rect x="82" y="42" width="22" height="6" fill="#FFC800" stroke="#11141B" stroke-width="2.5"/><path d="M59 2 V16" stroke="#11141B" stroke-width="3" fill="none"/><path d="M53 11 L59 18 L65 11" stroke="#11141B" stroke-width="3" fill="none"/></svg>
-                <span>Nut assembly</span>
-              </li>
-              <li>
-                <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="8" y="14" width="104" height="66" fill="#FFFFFF" stroke="#11141B" stroke-width="3"/><path d="M20 34 C 28 24, 44 26, 48 34 C 54 44, 40 52, 30 50 C 18 48, 14 40, 20 34 Z" fill="#1E50FF"/><path d="M52 64 L64 32 L76 64 L88 34" stroke="#11141B" stroke-width="2.5" stroke-dasharray="4 4" fill="none"/><rect x="82" y="24" width="20" height="14" fill="#FFC800" stroke="#11141B" stroke-width="3"/></svg>
-                <span>Wiping a spill</span>
-              </li>
-              <li>
-                <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="6" y="78" width="108" height="4" fill="#11141B"/><rect x="38" y="46" width="44" height="32" fill="#1E50FF" stroke="#11141B" stroke-width="3"/><rect x="34" y="42" width="52" height="6" fill="#11141B"/><rect x="24" y="50" width="14" height="6" fill="#11141B"/><rect x="82" y="50" width="14" height="6" fill="#11141B"/><path d="M6 6 L18 30 L26 50" stroke="#11141B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M114 6 L102 30 L94 50" stroke="#11141B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="18" cy="30" r="4" fill="#FFC800" stroke="#11141B" stroke-width="2"/><circle cx="102" cy="30" r="4" fill="#FFC800" stroke="#11141B" stroke-width="2"/><path d="M60 34 V12" stroke="#11141B" stroke-width="3" fill="none"/><path d="M54 18 L60 10 L66 18" stroke="#11141B" stroke-width="3" fill="none"/></svg>
-                <span>Two-arm lift</span>
-              </li>
-              <li>
-                <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="6" y="78" width="108" height="4" fill="#11141B"/><rect x="36" y="40" width="52" height="6" fill="#FFC800" stroke="#11141B" stroke-width="2.5"/><rect x="24" y="34" width="12" height="18" fill="#11141B"/><path d="M6 6 L20 20 L46 38" stroke="#11141B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M114 74 L100 62 L74 48" stroke="#11141B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="20" cy="20" r="4" fill="#FFC800" stroke="#11141B" stroke-width="2"/><circle cx="100" cy="62" r="4" fill="#FFC800" stroke="#11141B" stroke-width="2"/><path d="M56 18 H86" stroke="#11141B" stroke-width="3" fill="none"/><path d="M80 12 L88 18 L80 24" stroke="#11141B" stroke-width="3" fill="none"/></svg>
-                <span>Two-arm handover</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <div class="fact fact-scenes">
-          <h3 class="fact-h">Scenes</h3>
-          <div class="fact-body scenes">
-            <div class="split split-nums" aria-hidden="true"><span>210</span><span>140</span><span>350</span></div>
-            <div class="split split-bar" aria-hidden="true" data-reveal>
-              <span class="seg bg-green"></span>
-              <span class="seg bg-red"></span>
-              <span class="seg seg-private"><span></span><span></span></span>
+      <div class="scroll-frame">
+        <div class="scroller" data-scroll-label="Tasks and scenes">
+          <div class="facts">
+            <div class="fact fact-tasks">
+              <h3 class="fact-h">Tasks</h3>
+              <div class="fact-body">
+                <p class="fact-lead">Seven RoboSuite tasks in simulation, from the CaP-X benchmark (<a href="https://arxiv.org/abs/2603.22435" rel="noopener noreferrer">paper</a>, <a href="https://capgym.github.io/" rel="noopener noreferrer">project page</a>).</p>
+                <ul class="tasks">
+                  <li>
+                    <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="6" y="78" width="108" height="4" fill="#11141B"/><rect x="48" y="56" width="22" height="22" fill="none" stroke="#11141B" stroke-width="2" stroke-dasharray="3 3"/><line x1="59" y1="0" x2="59" y2="12" stroke="#11141B" stroke-width="4"/><rect x="42" y="12" width="34" height="5" fill="#11141B"/><rect x="42" y="17" width="5" height="22" fill="#11141B"/><rect x="71" y="17" width="5" height="22" fill="#11141B"/><rect x="48" y="20" width="22" height="22" fill="#D9301A" stroke="#11141B" stroke-width="3"/><path d="M96 66 V30" stroke="#11141B" stroke-width="3" fill="none"/><path d="M90 36 L96 28 L102 36" stroke="#11141B" stroke-width="3" fill="none"/></svg>
+                    <span>Cube lifting</span>
+                  </li>
+                  <li>
+                    <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="6" y="78" width="108" height="4" fill="#11141B"/><rect x="44" y="48" width="30" height="30" fill="#00A65A" stroke="#11141B" stroke-width="3"/><rect x="48" y="26" width="22" height="22" fill="#D9301A" stroke="#11141B" stroke-width="3"/><path d="M52 8 L59 15 L66 8" stroke="#11141B" stroke-width="3" fill="none"/></svg>
+                    <span>Stacking</span>
+                  </li>
+                  <li>
+                    <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="6" y="78" width="108" height="4" fill="#11141B"/><rect x="14" y="58" width="20" height="20" fill="#00A65A" stroke="#11141B" stroke-width="3"/><rect x="14" y="38" width="20" height="20" fill="#D9301A" stroke="#11141B" stroke-width="3"/><path d="M42 52 H74" stroke="#11141B" stroke-width="3" fill="none"/><path d="M68 46 L76 52 L68 58" stroke="#11141B" stroke-width="3" fill="none"/><rect x="84" y="58" width="20" height="20" fill="#D9301A" stroke="#11141B" stroke-width="3"/><rect x="84" y="38" width="20" height="20" fill="#00A65A" stroke="#11141B" stroke-width="3"/></svg>
+                    <span>Restacking</span>
+                  </li>
+                  <li>
+                    <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="6" y="78" width="108" height="4" fill="#11141B"/><rect x="54" y="26" width="10" height="52" fill="#11141B"/><rect x="36" y="40" width="46" height="10" fill="#FFC800" stroke="#11141B" stroke-width="3"/><rect x="82" y="42" width="22" height="6" fill="#FFC800" stroke="#11141B" stroke-width="2.5"/><path d="M59 2 V16" stroke="#11141B" stroke-width="3" fill="none"/><path d="M53 11 L59 18 L65 11" stroke="#11141B" stroke-width="3" fill="none"/></svg>
+                    <span>Nut assembly</span>
+                  </li>
+                  <li>
+                    <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="8" y="14" width="104" height="66" fill="#FFFFFF" stroke="#11141B" stroke-width="3"/><path d="M20 34 C 28 24, 44 26, 48 34 C 54 44, 40 52, 30 50 C 18 48, 14 40, 20 34 Z" fill="#1E50FF"/><path d="M52 64 L64 32 L76 64 L88 34" stroke="#11141B" stroke-width="2.5" stroke-dasharray="4 4" fill="none"/><rect x="82" y="24" width="20" height="14" fill="#FFC800" stroke="#11141B" stroke-width="3"/></svg>
+                    <span>Wiping a spill</span>
+                  </li>
+                  <li>
+                    <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="6" y="78" width="108" height="4" fill="#11141B"/><rect x="38" y="46" width="44" height="32" fill="#1E50FF" stroke="#11141B" stroke-width="3"/><rect x="34" y="42" width="52" height="6" fill="#11141B"/><rect x="24" y="50" width="14" height="6" fill="#11141B"/><rect x="82" y="50" width="14" height="6" fill="#11141B"/><path d="M6 6 L18 30 L26 50" stroke="#11141B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M114 6 L102 30 L94 50" stroke="#11141B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="18" cy="30" r="4" fill="#FFC800" stroke="#11141B" stroke-width="2"/><circle cx="102" cy="30" r="4" fill="#FFC800" stroke="#11141B" stroke-width="2"/><path d="M60 34 V12" stroke="#11141B" stroke-width="3" fill="none"/><path d="M54 18 L60 10 L66 18" stroke="#11141B" stroke-width="3" fill="none"/></svg>
+                    <span>Two-arm lift</span>
+                  </li>
+                  <li>
+                    <svg aria-hidden="true" viewBox="0 0 120 90"><rect x="6" y="78" width="108" height="4" fill="#11141B"/><rect x="36" y="40" width="52" height="6" fill="#FFC800" stroke="#11141B" stroke-width="2.5"/><rect x="24" y="34" width="12" height="18" fill="#11141B"/><path d="M6 6 L20 20 L46 38" stroke="#11141B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M114 74 L100 62 L74 48" stroke="#11141B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="20" cy="20" r="4" fill="#FFC800" stroke="#11141B" stroke-width="2"/><circle cx="100" cy="62" r="4" fill="#FFC800" stroke="#11141B" stroke-width="2"/><path d="M56 18 H86" stroke="#11141B" stroke-width="3" fill="none"/><path d="M80 12 L88 18 L80 24" stroke="#11141B" stroke-width="3" fill="none"/></svg>
+                    <span>Two-arm handover</span>
+                  </li>
+                </ul>
+              </div>
             </div>
-            <div class="split split-labels">
-              <div class="split-item">
-                <span class="split-h"><span class="key bg-green" aria-hidden="true"></span>Training set</span>
-                <span class="split-t">30 public scenes per task.</span>
-              </div>
-              <div class="split-item">
-                <span class="split-h"><span class="key bg-red" aria-hidden="true"></span>Public test</span>
-                <span class="split-t">Every submission gets a score on 140 hidden scenes of the same tasks.</span>
-              </div>
-              <div class="split-item last">
-                <span class="split-h"><span class="key bg-ink" aria-hidden="true"></span>Private test</span>
-                <span class="split-t">350 hidden scenes decide the final ranking.</span>
-                <div class="private-split">
-                  <span><span class="key-sq" aria-hidden="true"></span><span><b>175</b> of the seven known tasks</span></span>
-                  <span><span class="key-sq hatch" aria-hidden="true"></span><span><b>175</b> goal variants nobody has seen</span></span>
+
+            <div class="fact fact-scenes">
+              <h3 class="fact-h">Scenes</h3>
+              <div class="fact-body scenes">
+                <div class="split split-nums" aria-hidden="true"><span>210</span><span>140</span><span>350</span></div>
+                <div class="split split-bar" aria-hidden="true" data-reveal>
+                  <span class="seg bg-green"></span>
+                  <span class="seg bg-red"></span>
+                  <span class="seg seg-private"><span></span><span></span></span>
+                </div>
+                <div class="split split-labels">
+                  <div class="split-item">
+                    <span class="split-h"><span class="key bg-green" aria-hidden="true"></span>Training set</span>
+                    <span class="split-t">30 public scenes per task.</span>
+                  </div>
+                  <div class="split-item">
+                    <span class="split-h"><span class="key bg-red" aria-hidden="true"></span>Public test</span>
+                    <span class="split-t">Every submission gets a score on 140 hidden scenes of the same tasks.</span>
+                  </div>
+                  <div class="split-item last">
+                    <span class="split-h"><span class="key bg-ink" aria-hidden="true"></span>Private test</span>
+                    <span class="split-t">350 hidden scenes decide the final ranking.</span>
+                    <div class="private-split">
+                      <span><span class="key-sq" aria-hidden="true"></span><span><b>175</b> of the seven known tasks</span></span>
+                      <span><span class="key-sq hatch" aria-hidden="true"></span><span><b>175</b> goal variants nobody has seen</span></span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -277,56 +281,59 @@
         <p class="kicker-s">Everything you need is free. Use the infrastructure we provide, your own machine, or both.</p>
       </div>
 
-      <div class="infra">
-        <div class="box">
-          <div class="box-head bg-blue">
-            <span class="eyebrow">We run it, at no cost</span>
-            <h3>Our GPU machine</h3>
-          </div>
-          <div class="box-body">
-            <p>We run Inkling 2 Mini on an NVIDIA RTX PRO 6000 and open it to every participant at no cost.</p>
-            <div class="box-row">
-              <span class="row-h">Scores your submissions</span>
-              <div class="quota">
-                <span class="squares" aria-hidden="true"><span></span><span></span><span></span></span>
-                <span class="mono">up to 3 a day</span>
+      <div class="scroll-frame">
+        <div class="scroller" data-scroll-label="Infrastructure diagram">
+          <div class="infra">
+            <div class="box">
+              <div class="box-head bg-blue">
+                <span class="eyebrow">We run it, at no cost</span>
+                <h3>Our GPU machine</h3>
+              </div>
+              <div class="box-body">
+                <p>We run Inkling 2 Mini on an NVIDIA RTX PRO 6000 and open it to every participant at no cost.</p>
+                <div class="box-row">
+                  <span class="row-h">Scores your submissions</span>
+                  <div class="quota">
+                    <span class="squares" aria-hidden="true"><span></span><span></span><span></span></span>
+                    <span class="mono">up to 3 a day</span>
+                  </div>
+                </div>
+                <div class="box-row">
+                  <span class="row-h">Runs your training episodes for you</span>
+                  <div class="quota">
+                    <span class="squares" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span>
+                    <span class="mono">up to 10 remote runs a day, 50 episodes each</span>
+                  </div>
+                </div>
               </div>
             </div>
-            <div class="box-row">
-              <span class="row-h">Runs your training episodes for you</span>
-              <div class="quota">
-                <span class="squares" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span>
-                <span class="mono">up to 10 remote runs a day, 50 episodes each</span>
+
+            <div class="infra-link">
+              <svg aria-hidden="true" width="188" height="20" viewBox="0 0 188 20"><path d="M12 10 H176" stroke="#11141B" stroke-width="3" fill="none"/><path d="M12 3 L0 10 L12 17 Z" fill="#11141B"/><path d="M176 3 L188 10 L176 17 Z" fill="#11141B"/></svg>
+              <span class="eyebrow">Model calls</span>
+              <span class="link-t">When you simulate on your own computer, your harness can still call the model on our machine.</span>
+            </div>
+
+            <div class="box">
+              <div class="box-head bg-yellow">
+                <span class="eyebrow">You run it</span>
+                <h3>Your own machine</h3>
               </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="infra-link">
-          <svg class="h-only" aria-hidden="true" width="188" height="20" viewBox="0 0 188 20"><path d="M12 10 H176" stroke="#11141B" stroke-width="3" fill="none"/><path d="M12 3 L0 10 L12 17 Z" fill="#11141B"/><path d="M176 3 L188 10 L176 17 Z" fill="#11141B"/></svg>
-          <svg class="v-only" aria-hidden="true" width="20" height="56" viewBox="0 0 20 56"><path d="M10 12 V44" stroke="#11141B" stroke-width="3" fill="none"/><path d="M3 12 L10 0 L17 12 Z" fill="#11141B"/><path d="M3 44 L10 56 L17 44 Z" fill="#11141B"/></svg>
-          <span class="eyebrow">Model calls</span>
-          <span class="link-t">When you simulate on your own computer, your harness can still call the model on our machine.</span>
-        </div>
-
-        <div class="box">
-          <div class="box-head bg-yellow">
-            <span class="eyebrow">You run it</span>
-            <h3>Your own machine</h3>
-          </div>
-          <div class="box-body">
-            <p>The simulator runs on a laptop CPU.</p>
-            <div class="box-row">
-              <span class="row-h">Where it runs</span>
-              <ul class="chips mono-chips">
-                <li>macOS</li>
-                <li>Linux</li>
-                <li>Windows through WSL2</li>
-              </ul>
-            </div>
-            <div class="box-row">
-              <span class="row-h">Your own model</span>
-              <span class="row-t">You can also point the tools at a model you serve yourself.</span>
+              <div class="box-body">
+                <p>The simulator runs on a laptop CPU.</p>
+                <div class="box-row">
+                  <span class="row-h">Where it runs</span>
+                  <ul class="chips mono-chips">
+                    <li>macOS</li>
+                    <li>Linux</li>
+                    <li>Windows through WSL2</li>
+                  </ul>
+                </div>
+                <div class="box-row">
+                  <span class="row-h">Your own model</span>
+                  <span class="row-t">You can also point the tools at a model you serve yourself.</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

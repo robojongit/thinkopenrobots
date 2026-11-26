@@ -69,7 +69,6 @@ a:hover { color: var(--accent); }
   padding-right: max(20px, env(safe-area-inset-right, 0px));
 }
 .mono { font-family: var(--mono); }
-.v-only { display: none; }
 .bg-yellow { background: var(--yellow); }
 .bg-blue { background: var(--accent); color: var(--white); }
 .bg-green { background: var(--green); }
@@ -247,37 +246,25 @@ figure.chart { margin: 10px 0 0; display: flex; flex-direction: column; gap: 8px
 .chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 5px; }
 .chips li { border: 1.5px solid var(--ink); padding: 1px 7px; font-size: 13px; line-height: 1.4; }
 .arrow-h { position: absolute; right: -47px; top: calc(50% - 8px); overflow: visible; }
-.arrow-v { position: absolute; left: calc(50% - 8px); bottom: -51px; overflow: visible; }
 .token { fill: var(--yellow); stroke: var(--ink); stroke-width: 2; opacity: 0; }
 .loop { position: relative; margin-inline: calc((100% - 144px) / 8); height: 26px; }
 .loop-lines { position: absolute; left: 1px; right: 1px; top: 0; bottom: 1px; width: calc(100% - 2px); height: calc(100% - 1px); overflow: visible; }
 .loop-lines line { stroke: var(--ink); stroke-width: 2; stroke-dasharray: 6 6; }
 .loop-head { position: absolute; left: -7px; top: -2px; }
 .loop-label { position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%); background: var(--paper); padding: 0 12px; font-family: var(--mono); font-size: 12px; line-height: 20px; white-space: nowrap; }
-.loop-v { margin: 14px 0 0; font-family: var(--mono); font-size: 13px; line-height: 1.5; border: 2px dashed var(--ink); padding: 8px 12px; }
 
 /* ---------- how it works: tasks and scenes ---------- */
-.facts { margin-top: clamp(18px, 1.6vw, 22px); border-top: 2px solid var(--ink); display: grid; grid-template-columns: minmax(0, 1fr); }
-.fact { display: flex; flex-direction: column; gap: 10px; padding-block: 16px; border-bottom: 1px solid var(--rule); min-width: 0; }
-.fact:last-child { border-bottom: 0; padding-bottom: 0; }
+.facts { margin-top: clamp(18px, 1.6vw, 22px); border-top: 2px solid var(--ink); display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
+.fact { display: flex; flex-direction: column; gap: 10px; padding-top: 16px; min-width: 0; }
+.fact-tasks { padding-right: 36px; }
+.fact-scenes { padding-left: 36px; border-left: 1px solid var(--rule); }
 .fact-h { margin: 0; font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 .fact-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .fact-lead { margin: 0; font-size: 16px; line-height: 1.5; max-width: 62ch; }
-.tasks { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
-.tasks li { background: var(--white); border: 2px solid var(--ink); padding: 8px 8px 9px; display: flex; flex-direction: column; gap: 6px; }
-.tasks svg { display: block; width: 100%; height: 56px; }
+.tasks { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.tasks li { background: var(--white); border: 2px solid var(--ink); padding: 5px 8px 5px 5px; display: flex; align-items: center; gap: 8px; }
+.tasks svg { display: block; flex: none; width: 48px; height: 36px; }
 .tasks li > span { font-size: 14px; font-weight: 700; line-height: 1.25; }
-
-/* side by side: tasks next to scenes */
-@media (min-width: 1000px) {
-  .facts { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
-  .fact { border-bottom: 0; padding-bottom: 0; }
-  .fact-tasks { padding-right: 36px; }
-  .fact-scenes { padding-left: 36px; border-left: 1px solid var(--rule); }
-  .tasks { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .tasks li { flex-direction: row; align-items: center; gap: 8px; padding: 5px 8px 5px 5px; }
-  .tasks svg { flex: none; width: 48px; height: 36px; }
-}
 
 .scenes { gap: 8px; }
 .split { display: grid; grid-template-columns: 210fr 140fr 350fr; gap: 6px; }
@@ -352,77 +339,48 @@ pre.prompt:focus-visible { outline-color: var(--ink); outline-offset: 3px; }
 
 /* ---------- narrow screens (from the phone layout) ---------- */
 @media (max-width: 760px) {
-  .pipe { grid-template-columns: minmax(0, 1fr); gap: 30px; }
-  /* the vertical arrows drawn at half size to fit the tighter gap */
-  .arrow-v { width: 8px; height: 22px; left: calc(50% - 4px); bottom: -26px; }
-  .card-head { padding-block: 4px; }
-  .card-body { gap: 4px; }
-  .loop-v { margin-top: 12px; padding: 6px 10px; }
-  .h-only { display: none !important; }
-  .v-only { display: block !important; }
-  .tasks { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-  .tasks li { padding: 6px 6px 7px; gap: 4px; }
-  .tasks svg { height: 38px; }
-  .fact { padding-block: 14px; }
-  .card-body { padding: 6px 12px 8px; }
-  .tasks li > span { font-size: 13px; }
-  .split-item { grid-template-columns: 116px minmax(0, 1fr); column-gap: 10px; }
-  .private-split { grid-column: 1 / -1; }
-  .infra { grid-template-columns: minmax(0, 1fr); }
-  /* the model-calls link as one row: arrow, then label and text */
-  .infra-link { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 2px 14px; justify-items: start; padding: 10px 4px; text-align: left; }
-  .infra-link svg.v-only { grid-row: 1 / span 2; align-self: center; height: 44px; }
-  .link-t { max-width: none; }
   .join-title { font-size: 36px; }
   pre.prompt { padding: 12px 14px; }
   .controls { margin-left: 0; }
 }
 
-/* ---------- standings as stacked cards below 1000px: same table semantics, different layout ---------- */
+/* ---------- touch screens: bigger hit areas around the chart points and the table's links, same look ---------- */
 @media (max-width: 1000px) {
-  /* touch targets: a bigger hit area around the chart points and the links in the cards, same look */
   .pt { width: 40px; height: 40px; margin: -20px 0 0 -20px; }
   a.who-name, .board td.cell-commit a, .board td.cell-picks a { display: inline-block; padding-block: 10px; margin-block: -10px; }
-  .table-wrap { overflow: visible; }
-  .board { min-width: 0; }
-  .board thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .board tr, .board.final tr {
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-areas: "band acct" "score score" "c4 c4" "c5 c5" "c6 c6";
-    column-gap: 12px; row-gap: 8px; padding: 12px 14px; align-items: center;
-  }
-  .board td, .board td.cell-band { padding: 0; }
-  .board td:nth-child(1) { grid-area: band; }
-  .board td:nth-child(2) { grid-area: acct; }
-  .board td:nth-child(3) { grid-area: score; }
-  .board td:nth-child(4) { grid-area: c4; }
-  .board td:nth-child(5) { grid-area: c5; }
-  .board td:nth-child(6) { grid-area: c6; }
-  .board td.cell-score { grid-template-columns: 96px minmax(0, 1fr); gap: 12px; }
-  .ivl { height: 40px; }
-  .ivl .scale { display: flex; justify-content: space-between; position: absolute; left: 0; right: 0; top: 27px; font-family: var(--mono); font-size: 11px; line-height: 13px; color: var(--muted); }
-  .board td.cell-tokens, .board td.cell-date, .board td.cell-commit, .board td.cell-runs, .board td.cell-picks {
-    display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 6px; border-top: 1px solid var(--row-rule);
-  }
-  .board td.cell-tokens::before, .board td.cell-date::before, .board td.cell-commit::before, .board td.cell-runs::before, .board td.cell-picks::before {
-    content: attr(data-label); margin-right: auto; font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted);
-  }
-  .board td.cell-picks { align-items: flex-start; }
-  .board td.cell-date time span { display: inline; }
-  .picks { text-align: right; }
 }
 
-/* tablets: account and score on one line, the small cells side by side under them, label above value */
-@media (min-width: 761px) and (max-width: 1000px) {
-  .board tr { grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "band acct score score" "c4 c4 c5 c6"; column-gap: 16px; row-gap: 10px; padding: 12px 16px; }
-  .board.final tr { grid-template-areas: "band acct score score" "c4 c4 c5 c5"; }
-  .board td.cell-tokens, .board td.cell-date, .board td.cell-commit, .board td.cell-runs, .board td.cell-picks {
-    flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 3px;
+/* ---------- horizontal scrollers: the standings table, and below 1000px the how-it-works and infrastructure diagrams ---------- */
+/* app.js makes a scroller focusable while it scrolls and marks its frame more-left / more-right,
+ * which shows a shadow on that edge: the content continues there. */
+.table-wrap { -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+.board-host, .scroll-frame { position: relative; }
+.board-host::before, .board-host::after, .scroll-frame::before, .scroll-frame::after {
+  content: ""; position: absolute; z-index: 1; top: 0; bottom: 0; width: 28px; pointer-events: none; opacity: 0; transition: opacity 160ms linear;
+}
+.board-host::before, .scroll-frame::before { left: 0; background: linear-gradient(to right, rgba(17, 20, 27, 0.18), rgba(17, 20, 27, 0)); }
+.board-host::after, .scroll-frame::after { right: 0; background: linear-gradient(to left, rgba(17, 20, 27, 0.18), rgba(17, 20, 27, 0)); }
+/* inside the table's border */
+.board-host::before, .board-host::after { top: 2px; bottom: 2px; }
+.board-host::before { left: 2px; }
+.board-host::after { right: 2px; }
+.more-left::before, .more-right::after { opacity: 1; }
+.table-wrap:focus-visible, .scroller:focus-visible { outline-offset: -3px; }
+
+@media (max-width: 999px) {
+  /* the frame runs to the screen edges, so the diagrams are cut by the screen, not by the page margin */
+  .scroll-frame { margin-inline: calc(-1 * max(20px, env(safe-area-inset-left, 0px))) calc(-1 * max(20px, env(safe-area-inset-right, 0px))); }
+  .scroller {
+    display: flex; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain;
+    padding-left: max(20px, env(safe-area-inset-left, 0px));
   }
-  .board td.cell-tokens { flex-flow: row wrap; column-gap: 10px; }
-  .board td.cell-tokens::before { flex-basis: 100%; }
-  .board td.cell-tokens::before, .board td.cell-date::before, .board td.cell-commit::before, .board td.cell-runs::before, .board td.cell-picks::before { margin-right: 0; }
-  .picks { text-align: left; }
+  /* the right margin as a flex item: end padding of a scroller is not kept by every browser */
+  .scroller::after { content: ""; flex: 0 0 max(20px, env(safe-area-inset-right, 0px)); }
+  .scroller > * { flex: 1 0 0%; }
+  /* widths at which each diagram reads as on desktop */
+  .pipe-wrap { min-width: 1000px; padding-bottom: 12px; }
+  .facts { min-width: 1000px; }
+  .infra { min-width: 860px; }
 }
 
 /* ---------- hero stacked (text above the arm): crop the arm's empty sky, the top 100 of its 420 viewBox units ---------- */
@@ -462,12 +420,6 @@ pre.prompt:focus-visible { outline-color: var(--ink); outline-offset: 3px; }
   pre.prompt { white-space: normal; font-size: 12.5px; line-height: 1.65; }
   .join-text p { font-size: 16px; }
 }
-/* small phones: the seven tasks as two columns of rows, drawing then name, like the desktop list */
-@media (max-width: 480px) {
-  .tasks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .tasks li { flex-direction: row; align-items: center; gap: 8px; padding: 5px 8px 5px 5px; }
-  .tasks svg { flex: none; width: 48px; height: 36px; }
-}
 
 /* ---------- motion (only when motion.js sets .motion: never with reduced motion) ---------- */
 /* Start states are screen-only, so a printout always shows the finished state. */
@@ -489,7 +441,6 @@ pre.prompt:focus-visible { outline-color: var(--ink); outline-offset: 3px; }
 .motion .chart-box .best-lbl { transition: opacity 400ms linear 1300ms; }
 
 .motion .pipe-wrap .token { animation: token-h 5.4s var(--ease-mech) infinite paused; }
-.motion .pipe-wrap .arrow-v .token { animation-name: token-v; }
 .motion .pipe-wrap .card:nth-child(2) .token { animation-delay: 1.2s; }
 .motion .pipe-wrap .card:nth-child(3) .token { animation-delay: 2.4s; }
 .motion .pipe-wrap .loop-lines line { animation: march 900ms linear infinite paused; }
@@ -499,12 +450,6 @@ pre.prompt:focus-visible { outline-color: var(--ink); outline-offset: 3px; }
   3% { opacity: 1; }
   14% { transform: translateX(26px); opacity: 1; }
   18%, 100% { transform: translateX(26px); opacity: 0; }
-}
-@keyframes token-v {
-  0% { transform: translateY(0); opacity: 0; }
-  3% { opacity: 1; }
-  14% { transform: translateY(26px); opacity: 1; }
-  18%, 100% { transform: translateY(26px); opacity: 0; }
 }
 @keyframes march { to { stroke-dashoffset: -12; } }
 
