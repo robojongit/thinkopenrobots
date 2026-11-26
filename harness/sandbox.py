@@ -437,7 +437,7 @@ class ContainerSandbox:
         runtime: str = "runsc",
         image: str | None = None,
         cpus: float = 1.0,
-        memory: str = "4g",
+        memory: str = "2g",
         pids_limit: int = 256,
         tmpfs_size: str = "512m",
         cpuset: str | None = None,

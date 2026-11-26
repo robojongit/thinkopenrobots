@@ -36,7 +36,7 @@ def test_container_flags(tmp_path, monkeypatch):
         "--network none --ipc none --read-only --cap-drop ALL",
         "--security-opt no-new-privileges --user 65534:65534",
         "--tmpfs /tmp:rw,nosuid,nodev,noexec,size=512m",
-        "--cpus 1.0 --memory 4g --memory-swap 4g --pids-limit 256 --ulimit nproc=56",
+        "--cpus 1.0 --memory 2g --memory-swap 2g --pids-limit 256 --ulimit nproc=56",
         "--ulimit core=0 --ulimit msgqueue=0 --log-driver none --cpuset-cpus 2-3",
         "--env TOKEN --mount",
         "--workdir /tmp --entrypoint python img -I -B -m m",
