@@ -7,3 +7,5 @@ __pycache__/
 runs/
 results.tsv
 *.mp4
+# the site's chosen clips are the one exception
+!/site/videos/*.mp4
