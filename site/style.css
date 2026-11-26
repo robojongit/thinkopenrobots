@@ -376,8 +376,13 @@ pre.prompt:focus-visible { outline-color: var(--ink); outline-offset: 3px; }
   .join-title { font-size: 36px; }
   pre.prompt { padding: 12px 14px; }
   .controls { margin-left: 0; }
+}
 
-  /* standings as stacked cards: same table semantics, different layout */
+/* ---------- standings as stacked cards below 1000px: same table semantics, different layout ---------- */
+@media (max-width: 1000px) {
+  /* touch targets: a bigger hit area around the chart points and the links in the cards, same look */
+  .pt { width: 40px; height: 40px; margin: -20px 0 0 -20px; }
+  a.who-name, .board td.cell-commit a, .board td.cell-picks a { display: inline-block; padding-block: 10px; margin-block: -10px; }
   .table-wrap { overflow: visible; }
   .board { min-width: 0; }
   .board thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -405,6 +410,63 @@ pre.prompt:focus-visible { outline-color: var(--ink); outline-offset: 3px; }
   .board td.cell-picks { align-items: flex-start; }
   .board td.cell-date time span { display: inline; }
   .picks { text-align: right; }
+}
+
+/* tablets: account and score on one line, the small cells side by side under them, label above value */
+@media (min-width: 761px) and (max-width: 1000px) {
+  .board tr { grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "band acct score score" "c4 c4 c5 c6"; column-gap: 16px; row-gap: 10px; padding: 12px 16px; }
+  .board.final tr { grid-template-areas: "band acct score score" "c4 c4 c5 c5"; }
+  .board td.cell-tokens, .board td.cell-date, .board td.cell-commit, .board td.cell-runs, .board td.cell-picks {
+    flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 3px;
+  }
+  .board td.cell-tokens { flex-flow: row wrap; column-gap: 10px; }
+  .board td.cell-tokens::before { flex-basis: 100%; }
+  .board td.cell-tokens::before, .board td.cell-date::before, .board td.cell-commit::before, .board td.cell-runs::before, .board td.cell-picks::before { margin-right: 0; }
+  .picks { text-align: left; }
+}
+
+/* ---------- hero stacked (text above the arm): crop the arm's empty sky, the top 100 of its 420 viewBox units ---------- */
+@media (max-width: 1120px) {
+  .hero-art { overflow: hidden; }
+  .hero-art svg { margin-top: calc(-100% / 5.2); }
+}
+@media (min-width: 641px) and (max-width: 1120px) {
+  .hero-in { row-gap: 16px; }
+  .hero-art { margin-left: auto; }
+}
+
+/* ---------- phones ---------- */
+@media (max-width: 640px) {
+  /* header: the wordmark and the GitHub mark on one line, the nav as tabs on the rule under them */
+  header.site .bar { padding-top: 6px; padding-bottom: 0; column-gap: 8px; row-gap: 0; flex-wrap: wrap; }
+  .brand { flex: 1 1 auto; min-width: 0; gap: 10px; }
+  .logo { width: 24px; height: 24px; }
+  .brand-name { font-size: clamp(14px, 4.2vw, 17px); }
+  .gh { order: 2; margin: 0 -10px 0 0; }
+  header.site nav { order: 3; flex-basis: 100%; margin-left: 0; }
+  header.site nav ul { gap: 0; }
+
+  /* hero: tighter, the arm full width */
+  .hero-in { padding-top: 32px; padding-bottom: 24px; row-gap: 12px; }
+  .hero-text { gap: 16px; }
+  .display { font-size: clamp(36px, 10.6vw, 46px); }
+  .lead { font-size: 17px; line-height: 1.5; }
+  .hero-art { flex: 1 1 100%; }
+
+  .kicker { font-size: 17px; }
+  .legend { gap: 4px 16px; font-size: 13px; }
+  .controls label { font-size: 14px; line-height: 1.35; }
+  .chart-box { height: 220px; }
+
+  /* the prompt flows as one paragraph instead of breaking mid-line (copying uses its own text) */
+  pre.prompt { white-space: normal; font-size: 12.5px; line-height: 1.65; }
+  .join-text p { font-size: 16px; }
+}
+/* small phones: the seven tasks as two columns of rows, drawing then name, like the desktop list */
+@media (max-width: 480px) {
+  .tasks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tasks li { flex-direction: row; align-items: center; gap: 8px; padding: 5px 8px 5px 5px; }
+  .tasks svg { flex: none; width: 48px; height: 36px; }
 }
 
 /* ---------- motion (only when motion.js sets .motion: never with reduced motion) ---------- */
