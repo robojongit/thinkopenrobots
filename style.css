@@ -95,10 +95,15 @@ header.site .bar { padding-top: 12px; padding-bottom: 12px; display: flex; flex-
 /* the mark: the hero's red cube stacked on the green one, the small yellow cube beside them */
 .logo { display: block; flex: none; }
 .brand-name { font-weight: 800; font-stretch: 125%; font-size: 18px; letter-spacing: 0.02em; line-height: 1; text-transform: uppercase; }
+header.site nav { margin-left: auto; }
 header.site nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
 header.site nav a { display: flex; align-items: center; min-height: 44px; padding: 0 14px; font-weight: 700; font-size: 15px; text-decoration: none; color: var(--ink); }
 header.site nav a:hover { color: var(--accent); }
 header.site nav a[aria-current="page"] { box-shadow: inset 0 -4px 0 var(--accent); }
+/* the GitHub mark sits just right of the nav: the bar's 32px gap less 24px */
+.gh { display: flex; align-items: center; justify-content: center; flex: none; width: 44px; height: 44px; margin-left: -24px; color: var(--ink); }
+.gh svg { display: block; }
+.gh:hover { color: var(--accent); }
 
 /* ---------- hero ---------- */
 .hero { border-bottom: 2px solid var(--ink); }
@@ -229,7 +234,6 @@ figure.chart { margin: 10px 0 0; display: flex; flex-direction: column; gap: 8px
 .tip .t-agent svg { flex: none; }
 .tip .t-score { font-family: var(--mono); font-size: 14px; font-weight: 700; white-space: pre; }
 .tip .t-when { font-family: var(--mono); font-size: 12px; color: var(--rule); }
-figure.chart figcaption { font-size: 15px; line-height: 1.45; color: var(--muted); }
 
 /* ---------- how it works: pipeline ---------- */
 .pipe-wrap { margin-top: clamp(14px, 1.4vw, 20px); }
@@ -252,10 +256,10 @@ figure.chart figcaption { font-size: 15px; line-height: 1.45; color: var(--muted
 .loop-label { position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%); background: var(--paper); padding: 0 12px; font-family: var(--mono); font-size: 12px; line-height: 20px; white-space: nowrap; }
 .loop-v { margin: 14px 0 0; font-family: var(--mono); font-size: 13px; line-height: 1.5; border: 2px dashed var(--ink); padding: 8px 12px; }
 
-/* ---------- how it works: tasks, scenes, starting point ---------- */
+/* ---------- how it works: tasks and scenes ---------- */
 .facts { margin-top: clamp(18px, 1.6vw, 22px); border-top: 2px solid var(--ink); display: grid; grid-template-columns: minmax(0, 1fr); }
 .fact { display: flex; flex-direction: column; gap: 10px; padding-block: 16px; border-bottom: 1px solid var(--rule); min-width: 0; }
-.fact-start { border-bottom: 0; padding-bottom: 0; }
+.fact:last-child { border-bottom: 0; padding-bottom: 0; }
 .fact-h { margin: 0; font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 .fact-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .fact-lead { margin: 0; font-size: 16px; line-height: 1.5; max-width: 62ch; }
@@ -264,15 +268,12 @@ figure.chart figcaption { font-size: 15px; line-height: 1.45; color: var(--muted
 .tasks svg { display: block; width: 100%; height: 56px; }
 .tasks li > span { font-size: 14px; font-weight: 700; line-height: 1.25; }
 
-/* side by side: tasks next to scenes, then the starting point as one row underneath */
+/* side by side: tasks next to scenes */
 @media (min-width: 1000px) {
-  .facts { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); grid-template-areas: "tasks scenes" "start start"; }
-  .fact-tasks { grid-area: tasks; padding-right: 36px; }
-  .fact-scenes { grid-area: scenes; padding-left: 36px; border-left: 1px solid var(--rule); }
-  .fact-start { grid-area: start; }
-  .fact-start .start-right { flex-direction: row; align-items: center; gap: 28px; }
-  .fact-start .start-scale { flex: 1 1 auto; min-width: 0; }
-  .fact-start .start-right p { flex: 0 1 auto; max-width: 34ch; }
+  .facts { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
+  .fact { border-bottom: 0; padding-bottom: 0; }
+  .fact-tasks { padding-right: 36px; }
+  .fact-scenes { padding-left: 36px; border-left: 1px solid var(--rule); }
   .tasks { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .tasks li { flex-direction: row; align-items: center; gap: 8px; padding: 5px 8px 5px 5px; }
   .tasks svg { flex: none; width: 48px; height: 36px; }
@@ -297,19 +298,6 @@ figure.chart figcaption { font-size: 15px; line-height: 1.45; color: var(--muted
 .private-split b { font-family: var(--mono); }
 .key-sq { width: 14px; height: 14px; margin-top: 2px; background: var(--ink); flex: none; box-sizing: border-box; }
 .key-sq.hatch { border: 2px solid var(--ink); background: repeating-linear-gradient(135deg, var(--ink) 0 2px, var(--white) 2px 5px); }
-.callout { margin: 4px 0 0; max-width: 70ch; font-size: 15px; line-height: 1.5; padding: 8px 12px; background: var(--white); border: 2px solid var(--ink); }
-
-.start { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 12px 28px; }
-.start-num { flex: 0 0 auto; display: flex; flex-direction: column; gap: 2px; }
-.about { font-family: var(--mono); font-size: 13px; color: var(--muted); }
-.big { font-weight: 800; font-stretch: 125%; font-size: clamp(36px, 3.4vw, 48px); line-height: 1; letter-spacing: -0.02em; }
-.start-right { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-.start-scale { display: flex; flex-direction: column; gap: 4px; }
-.start-bar { position: relative; height: 18px; background: var(--white); border: 2px solid var(--ink); }
-.start-bar .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 45%; background: var(--ink); }
-.start-bar .mid { position: absolute; left: 50%; top: -6px; bottom: -6px; border-left: 2px dotted var(--muted); }
-.start-ticks { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 12px; color: var(--muted); }
-.start-right p { margin: 0; font-size: 16px; line-height: 1.45; max-width: 60ch; }
 
 /* ---------- infrastructure ---------- */
 .infra { margin-top: clamp(14px, 1.4vw, 20px); display: grid; grid-template-columns: minmax(0, 1fr) 184px minmax(0, 1fr); align-items: stretch; }
@@ -385,12 +373,16 @@ pre.prompt:focus-visible { outline-color: var(--ink); outline-offset: 3px; }
   .infra-link { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 2px 14px; justify-items: start; padding: 10px 4px; text-align: left; }
   .infra-link svg.v-only { grid-row: 1 / span 2; align-self: center; height: 44px; }
   .link-t { max-width: none; }
-  .start-right { flex-basis: 180px; }
   .join-title { font-size: 36px; }
   pre.prompt { padding: 12px 14px; }
   .controls { margin-left: 0; }
+}
 
-  /* standings as stacked cards: same table semantics, different layout */
+/* ---------- standings as stacked cards below 1000px: same table semantics, different layout ---------- */
+@media (max-width: 1000px) {
+  /* touch targets: a bigger hit area around the chart points and the links in the cards, same look */
+  .pt { width: 40px; height: 40px; margin: -20px 0 0 -20px; }
+  a.who-name, .board td.cell-commit a, .board td.cell-picks a { display: inline-block; padding-block: 10px; margin-block: -10px; }
   .table-wrap { overflow: visible; }
   .board { min-width: 0; }
   .board thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -418,6 +410,63 @@ pre.prompt:focus-visible { outline-color: var(--ink); outline-offset: 3px; }
   .board td.cell-picks { align-items: flex-start; }
   .board td.cell-date time span { display: inline; }
   .picks { text-align: right; }
+}
+
+/* tablets: account and score on one line, the small cells side by side under them, label above value */
+@media (min-width: 761px) and (max-width: 1000px) {
+  .board tr { grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "band acct score score" "c4 c4 c5 c6"; column-gap: 16px; row-gap: 10px; padding: 12px 16px; }
+  .board.final tr { grid-template-areas: "band acct score score" "c4 c4 c5 c5"; }
+  .board td.cell-tokens, .board td.cell-date, .board td.cell-commit, .board td.cell-runs, .board td.cell-picks {
+    flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 3px;
+  }
+  .board td.cell-tokens { flex-flow: row wrap; column-gap: 10px; }
+  .board td.cell-tokens::before { flex-basis: 100%; }
+  .board td.cell-tokens::before, .board td.cell-date::before, .board td.cell-commit::before, .board td.cell-runs::before, .board td.cell-picks::before { margin-right: 0; }
+  .picks { text-align: left; }
+}
+
+/* ---------- hero stacked (text above the arm): crop the arm's empty sky, the top 100 of its 420 viewBox units ---------- */
+@media (max-width: 1120px) {
+  .hero-art { overflow: hidden; }
+  .hero-art svg { margin-top: calc(-100% / 5.2); }
+}
+@media (min-width: 641px) and (max-width: 1120px) {
+  .hero-in { row-gap: 16px; }
+  .hero-art { margin-left: auto; }
+}
+
+/* ---------- phones ---------- */
+@media (max-width: 640px) {
+  /* header: the wordmark and the GitHub mark on one line, the nav as tabs on the rule under them */
+  header.site .bar { padding-top: 6px; padding-bottom: 0; column-gap: 8px; row-gap: 0; flex-wrap: wrap; }
+  .brand { flex: 1 1 auto; min-width: 0; gap: 10px; }
+  .logo { width: 24px; height: 24px; }
+  .brand-name { font-size: clamp(14px, 4.2vw, 17px); }
+  .gh { order: 2; margin: 0 -10px 0 0; }
+  header.site nav { order: 3; flex-basis: 100%; margin-left: 0; }
+  header.site nav ul { gap: 0; }
+
+  /* hero: tighter, the arm full width */
+  .hero-in { padding-top: 32px; padding-bottom: 24px; row-gap: 12px; }
+  .hero-text { gap: 16px; }
+  .display { font-size: clamp(36px, 10.6vw, 46px); }
+  .lead { font-size: 17px; line-height: 1.5; }
+  .hero-art { flex: 1 1 100%; }
+
+  .kicker { font-size: 17px; }
+  .legend { gap: 4px 16px; font-size: 13px; }
+  .controls label { font-size: 14px; line-height: 1.35; }
+  .chart-box { height: 220px; }
+
+  /* the prompt flows as one paragraph instead of breaking mid-line (copying uses its own text) */
+  pre.prompt { white-space: normal; font-size: 12.5px; line-height: 1.65; }
+  .join-text p { font-size: 16px; }
+}
+/* small phones: the seven tasks as two columns of rows, drawing then name, like the desktop list */
+@media (max-width: 480px) {
+  .tasks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tasks li { flex-direction: row; align-items: center; gap: 8px; padding: 5px 8px 5px 5px; }
+  .tasks svg { flex: none; width: 48px; height: 36px; }
 }
 
 /* ---------- motion (only when motion.js sets .motion: never with reduced motion) ---------- */
