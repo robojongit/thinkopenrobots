@@ -171,7 +171,9 @@ episode, 10 to 280 seconds and 1.5k to 22k tokens.
 ## The shared model, Mac and Ollama fallback
 
 Episodes call a shared Inkling 2 Mini server. If it is rate limited (429) or asleep (503),
-`bench train` waits and tells you; rerun the same command if it gives up (exit code 4). If you
+`bench train` waits and tells you; rerun the same command if it gives up (exit code 4). Each
+account has 30 million model tokens a day, reset at 00:00 UTC (`bench status` shows them); past
+that `bench` stops with exit code 8 until the reset. If you
 would rather use your own machine, point `bench` at any OpenAI-compatible server, for example
 Ollama on a Mac:
 

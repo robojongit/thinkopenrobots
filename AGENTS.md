@@ -36,8 +36,8 @@ better code more often.
 5. **Log every attempt** in `agent/memory/README.md` (format is in that file), kept or reverted.
 6. **One person, one GitHub account.** Do not create accounts, work around the daily limit, or
    print, log or commit the gateway key.
-7. **The model can be busy or asleep.** See "Model trouble" below. Never bypass the shared
-   model's limits.
+7. **The model can be busy, asleep or used up for the day.** See "Model trouble" below. Never
+   bypass the shared model's limits.
 8. **Ask before submitting** (see "When to ask").
 
 ## Commands
@@ -65,11 +65,11 @@ Exit codes (0 is success; a task failing is not an error, read the scores):
 | 1 | failed | Unexpected internal error: report it to the person |
 | 2 | usage | Bad arguments: fix the command |
 | 3 | not_ready | Setup problem, or `agent/` or the model URL unusable: run `doctor`, apply its fix |
-| 4 | infra | Model server unreachable, 5xx or 429; the run is incomplete: rerun the same command (same `--out`) |
+| 4 | infra | Model server unreachable, 5xx or 429 for longer than `bench` waits; the run is incomplete: rerun the same command (same `--out`) |
 | 5 | crashed | Episodes crashed in the harness (not task failures): see `crash.json` in the episode folder, tell the person |
 | 6 | not_found | Run folder, episode or shared (task, seed) pairs not found |
 | 7 | not_available | Needs the shared server, which is not configured or not available |
-| 8 | limited | Refused by a competition limit (daily quota, one queued, pick window); the message says when to retry |
+| 8 | limited | Refused by a competition limit (daily submissions or model tokens, one queued, pick window); the message says when it is back: do not retry before then |
 | 130 | interrupted | Ctrl-C; rerun with the same `--out` to resume |
 
 ## 1. Set up
@@ -227,10 +227,25 @@ count.
 
 ## Model trouble
 
-`bench train` already waits when the shared model answers 429 (rate limited, it follows
-`Retry-After`) or 503 with `Retry-After` (asleep: "waking the shared model, about 4 minutes";
-`doctor` cannot tell whether it is awake without waking it). It gives up after about 15 minutes
-and exits 4; rerun the same command and finished episodes are kept. Do not add retry loops for this inside `agent/` or hammer the server. If it keeps
+Limits of the shared model, per account: **30 million tokens a day** (prompt plus completion;
+the day is UTC and resets at 00:00 UTC) and **4 model requests at a time**. A full split of the
+base solution takes about 1.6M tokens, a multi-call agent 5M or more. `uv run bench status`
+shows the tokens used and the reset time; `bench train` prints them before it starts, with its
+estimate for the run, and warns if the run may not fit.
+
+- **Allowance used:** `bench train` stops at once with `daily model allowance used: X of Y
+  tokens, resets at 00:00 UTC (in N h)` and exits 8. Finished episodes are kept. Do not retry or
+  loop: nothing works before the reset. Tell the person; after the reset rerun the same command
+  (same `--out`), or use their fallback model now.
+- **More than 4 requests at once** (several runs, or more workers in total): requests wait a few
+  seconds and go on. Nothing to do, but runs are slower.
+- **Busy or asleep:** `bench train` waits when the shared model answers 429 or 503 with
+  `Retry-After` (asleep: "waking the shared model, about 4 minutes"; `doctor` cannot tell
+  whether it is awake without waking it). It gives up after about 15 minutes, or at once when
+  the server asks for longer than 10 minutes (it says so), and exits 4 (8 if a limit says so);
+  rerun the same command and finished episodes are kept.
+
+Do not add retry loops for this inside `agent/` or hammer the server. If it keeps
 failing, tell the person and either wait or use their fallback model: any OpenAI-compatible
 server, for example Ollama on `http://localhost:11434/v1`:
 `uv run bench train --model-url http://localhost:11434/v1 --model <name> --out runs/own-model`. Scores from another
@@ -260,8 +275,8 @@ def solve(task: Task, robot: Robot, llm: LLM) -> None: ...
   be an exact substring of a model reply's content from this episode, or `RunRefused` is raised.
   A run that raises gives `ok=False` and a traceback in `stderr`; it does not raise in `solve`.
 - Exceptions (all `InklingError`): `BudgetExceeded` (calls, tokens or time spent: catch it and
-  return), `LLMError` (`.data` has `kind`, `status`, `retry_after`), `RunRefused`,
-  `RobotApiError`, `Forbidden`.
+  return), `LLMError` (`.data` has `kind`, `status`, `retry_after`, and `code` from the
+  gateway), `RunRefused`, `RobotApiError`, `Forbidden`.
 - The checker runs once, after `solve` returns, raises, or time runs out. An episode still
   running at the wall-clock limit is a failure even if the task was done, so finish earlier.
 - Budget per episode, final: 10 model calls, 66k prompt plus completion tokens, 400 s of wall

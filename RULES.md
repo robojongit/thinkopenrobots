@@ -59,6 +59,10 @@ intervals, the rank bands and each account's chosen submissions.
 - **Any laptop works.** macOS and Linux can simulate locally. On Windows, `bench` runs natively
   and simulation uses the shared cloud machine (`--remote`); WSL2 is optional for local runs.
 - **Up to 3 submissions per account per day,** with at most one waiting in the queue.
+- **The shared model: 30 million tokens per account per day** (prompt plus completion, reset at
+  00:00 UTC) and at most 4 model requests at a time. `bench status` shows what is used; past the
+  allowance model requests are refused until the reset and `bench` exits 8. Your own model
+  (`--model-url`) has no limit.
 - **The robot only runs model-written code.** Agents may read poses directly, but anything that
   moves the robot must come from code Inkling wrote during the episode. `robot.run` accepts code
   that is an exact substring of the content of a model reply from this episode and runs it with
