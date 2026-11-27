@@ -15,6 +15,7 @@ from typing import Any
 from harness.llm_relay import DEFAULT_MODEL
 from harness.tasks import TASKS
 
+from . import allowance
 from .archive import ArchiveProblem, build
 from .coding_agent import CodingAgentProblem, parse_notes
 from .config import Config, write_private
@@ -242,6 +243,15 @@ def status(config: Config, ident: str | None) -> Result:
         f"{limits['used_24h']} of {limits['per_24h']} submissions in the last 24 hours"
         + (f"; next allowed at {limits['next_at']}" if limits.get("next_at") else "")
     )
+    model = allowance.from_answer(data)
+    if model is None:  # older gateways: only /v1/me has the token counts
+        try:
+            model = allowance.from_answer(gw.me())
+        except GatewayError:
+            model = None
+    if model is not None:
+        data = {**data, "model": model}
+        lines.append(allowance.describe(model))
     return data, "\n".join(lines), ExitCode.OK
 
 

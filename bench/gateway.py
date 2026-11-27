@@ -19,7 +19,10 @@ from .infra import retry_after_header
 
 TIMEOUT_S = 60.0
 MAX_JSON_BYTES = 4 * 1024 * 1024
-LIMIT_CODES = {"quota_exceeded", "already_queued", "window_closed", "not_pickable"}
+LIMIT_CODES = {
+    "quota_exceeded", "already_queued", "window_closed", "not_pickable",
+    "model_allowance_used", "chat_allowance_used",
+}  # fmt: skip
 SETUP_CODES = {"invalid_archive", "unauthorized", "account_disabled"}
 
 

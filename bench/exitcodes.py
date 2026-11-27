@@ -23,12 +23,13 @@ MEANING: dict[ExitCode, str] = {
     ExitCode.FAILED: "unexpected internal error",
     ExitCode.USAGE: "bad arguments or options",
     ExitCode.NOT_READY: "setup problem: a doctor check failed, or agent/ or model URL unusable",
-    ExitCode.INFRA: "model server unreachable, 5xx or 429; the run is incomplete, run it again",
+    ExitCode.INFRA: "model server unreachable, 5xx or 429 for longer than bench waits; the run is"
+    " incomplete, run it again",
     ExitCode.CRASHED: "episodes crashed in the harness (not task failures); see crash.json",
     ExitCode.NOT_FOUND: "run folder, episode or shared (task, seed) pairs not found",
     ExitCode.NOT_AVAILABLE: "needs the shared server, which is not configured or not available",
-    ExitCode.LIMITED: "refused by a competition limit (daily quota, one queued, pick window);"
-    " the message says when to retry",
+    ExitCode.LIMITED: "refused by a competition limit (daily submissions or model tokens, one"
+    " queued, pick window); the message says when to retry; do not retry before",
     ExitCode.INTERRUPTED: "interrupted (Ctrl-C); a rerun with the same --out resumes",
 }
 

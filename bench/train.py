@@ -21,9 +21,10 @@ from harness.episode import EnvFactory, run_episode
 from harness.llm_relay import Budget
 from harness.sandbox import make_sandbox
 
-from . import infra
+from . import allowance, infra
 from .exitcodes import CliError, ExitCode
-from .infra import Probe, classify, probe, say, wait_until_ready
+from .gateway import Gateway, GatewayError
+from .infra import Probe, classify, probe, say, stop_reason, wait_until_ready
 from .runs import CRASH, INFRA, SCORED, episode_dir, list_episodes, read_json
 from .score import compute_score
 
@@ -64,6 +65,9 @@ class TrainOptions:
     runtime: str = "runsc"
     verbose: bool = False
     """Show simulator and library output on the terminal instead of in ``<out>/sim.log``."""
+    gateway_url: str | None = None
+    """The competition gateway, when ``model_url`` is its shared model: the daily model
+    allowance is read from it before the run starts."""
 
 
 @dataclass(frozen=True)
@@ -98,7 +102,9 @@ def wait_for_server(opts: TrainOptions) -> Probe:
 
 
 def run_job(job: Job) -> dict[str, Any]:
-    """Run one episode, retrying after model-server trouble. Returns task, seed, status, detail."""
+    """Run one episode, retrying after model-server trouble. Returns task, seed, status, detail,
+    and ``stop`` (``{code, message}``) when the server's answer means no episode can run now
+    (the daily model allowance is used, say)."""
     opts = job.options
     summary = {"task": job.task, "seed": job.seed, "status": SCORED, "detail": ""}
     for attempt in range(opts.retries + 1):
@@ -130,9 +136,13 @@ def run_job(job: Job) -> dict[str, Any]:
         (job.out / "infra.json").write_text(
             json.dumps({"detail": problem, "attempts": attempt + 1}, indent=1)
         )
-        if attempt == opts.retries:
-            break
-        if not wait_for_server(opts).ok:
+        last = attempt == opts.retries  # then one probe, only to tell a limit apart
+        ready = probe(opts.model_url, opts.model, opts.api_key) if last else wait_for_server(opts)
+        if ready.stops:
+            code, message = stop_reason(ready)
+            stop = {"code": int(code), "message": message}
+            return {**summary, "status": INFRA, "detail": problem, "stop": stop}
+        if last or not ready.ok:
             break
     return {**summary, "status": INFRA, "detail": problem}
 
@@ -142,6 +152,8 @@ def check_server(opts: TrainOptions) -> None:
     ready = wait_for_server(opts)
     if ready.ok:
         return
+    if ready.stops:
+        raise CliError(*stop_reason(ready))
     if ready.transient:
         raise CliError(ExitCode.INFRA, f"model server not available ({ready.error or 'busy'})")
     raise CliError(
@@ -149,6 +161,64 @@ def check_server(opts: TrainOptions) -> None:
         f"model server rejected a test request ({ready.error}); check --model-url, --model and "
         "the key",
     )
+
+
+def tokens_per_episode(opts: TrainOptions) -> tuple[int, str | None]:
+    """(tokens, where the figure comes from) for the planned-run estimate: the mean of this
+    run's scored episodes, else of this agent's last run in results.tsv, else the per-episode
+    budget (source None: an upper bound)."""
+    tokens = [e.result.get("tokens") for e in list_episodes(opts.out) if e.status == SCORED]
+    tokens = [t for t in tokens if isinstance(t, (int, float))]
+    if tokens:
+        return round(sum(tokens) / len(tokens)), "the mean of this run's episodes so far"
+    sha = agent_fingerprint(opts.agent_dir)
+    try:
+        lines = opts.results_tsv.read_text().splitlines()
+    except OSError:
+        lines = []
+    header = lines[0].split("\t") if lines else []
+    for line in reversed(lines[1:]):
+        row = dict(zip(header, line.split("\t"), strict=False))
+        try:
+            if row.get("agent_sha") == sha and float(row["tokens_mean"]) > 0:
+                return round(float(row["tokens_mean"])), f"the mean of {row['run_id']}"
+        except (KeyError, ValueError):
+            continue
+    return opts.budget.tokens, None
+
+
+def check_allowance(opts: TrainOptions, episodes: int) -> None:
+    """With the shared model: print today's model allowance and what this run needs, warn if it
+    will not fit, and stop (exit 8) if nothing is left. Silent if the gateway does not say."""
+    if not (opts.gateway_url and opts.api_key):
+        return
+    try:
+        info = allowance.from_answer(Gateway(opts.gateway_url, opts.api_key, timeout=15).me())
+    except GatewayError:
+        return
+    if info is None:
+        return
+    say(allowance.describe(info))
+    remaining = allowance.left(info)
+    if remaining == 0:
+        raise CliError(ExitCode.LIMITED, allowance.used_up(info, None))
+    per_episode, source = tokens_per_episode(opts)
+    need = per_episode * episodes
+    if source is None:
+        say(
+            f"this run needs at most {need:,} tokens ({episodes} x the {per_episode:,}-token "
+            "episode budget; no earlier run of this agent to measure)"
+        )
+    else:
+        say(f"this run needs about {need:,} tokens ({episodes} x {per_episode:,}, {source})")
+    if remaining is not None and need > remaining:
+        fit = remaining // max(per_episode, 1)
+        say(
+            f"warning: {'that may be' if source is None else 'that is'} more than the "
+            f"{remaining:,} tokens left today (about {fit} episodes). The run stops when the "
+            "allowance is used (exit 8) and resumes after the reset with the same --out; or run "
+            "fewer episodes (--tasks, --seeds), or use your own model (--model-url)"
+        )
 
 
 def prepare_run(opts: TrainOptions, where: str = "local") -> None:
@@ -215,11 +285,13 @@ def format_estimate(episodes: int, workers: int, done: int = 0) -> str:
     )
 
 
-def run_pool(jobs: list[Job], workers: int, log_path: Path | None = None) -> None:
+def run_pool(jobs: list[Job], workers: int, log_path: Path | None = None) -> dict[str, Any] | None:
     """Run the jobs ``workers`` at a time; stop starting new ones once the model server has
-    defeated an episode's retries. With ``log_path``, workers write their stdout and stderr
-    there (see `quiet_worker`)."""
+    defeated an episode's retries, or answered that no episode can run now (returned:
+    ``{code, message}``). With ``log_path``, workers write their stdout and stderr there (see
+    `quiet_worker`)."""
     queue = iter(jobs)
+    stop = None
     quiet = {"initializer": quiet_worker, "initargs": (str(log_path),)} if log_path else {}
     pool = ProcessPoolExecutor(workers, mp_context=multiprocessing.get_context("spawn"), **quiet)
     running: set[Future] = set()
@@ -229,7 +301,7 @@ def run_pool(jobs: list[Job], workers: int, log_path: Path | None = None) -> Non
             while not stopped and len(running) < workers and (job := next(queue, None)):
                 running.add(pool.submit(run_job, job))
             if not running:
-                return
+                return stop
             done, running = wait(running, return_when=FIRST_COMPLETED)
             for future in done:
                 try:
@@ -240,7 +312,10 @@ def run_pool(jobs: list[Job], workers: int, log_path: Path | None = None) -> Non
                     raise
                 finished += 1
                 say(f"[{finished}/{len(jobs)}] {row['task']} seed {row['seed']}: {row['detail']}")
-                if row["status"] == INFRA and not stopped:
+                if row.get("stop") and stop is None:
+                    stop, stopped = row["stop"], True
+                    say(f"{stop['message']} Not starting more episodes.")
+                elif row["status"] == INFRA and not stopped:
                     stopped = True
                     say("model server still failing after retries; not starting more episodes")
     finally:
@@ -281,16 +356,20 @@ def run_train(opts: TrainOptions, make_env: EnvFactory | None = None) -> dict[st
     jobs = [Job(t, s, opts, make_env) for t, s in planned if (t, s) not in done]
     if jobs:
         say(format_estimate(len(jobs), opts.workers, len(planned) - len(jobs)))
+        check_allowance(opts, len(jobs))
         check_server(opts)
         if make_env is None:  # the real simulator: one IK server, owned here, for all workers
             from harness.ik_server import ensure_ik_server
 
             ensure_ik_server()
     log_path = None if opts.verbose or not jobs else opts.out / SIM_LOG
-    run_pool(jobs, opts.workers, log_path)
+    stop = run_pool(jobs, opts.workers, log_path)
     report = finish_run(opts, planned)
     if log_path and (report["crashed"] or report["infra_failed"]):
         say(f"simulator and library output of this run: {log_path} (or rerun with --verbose)")
+    if stop:
+        done = f"{report['episodes']}/{report['planned']} episodes scored in {opts.out}. "
+        raise CliError(ExitCode(stop["code"]), done + stop["message"])
     return report
 
 

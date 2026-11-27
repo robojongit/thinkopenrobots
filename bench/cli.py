@@ -215,6 +215,7 @@ def cmd_train(args: argparse.Namespace) -> Result:
         sandbox=args.sandbox,
         runtime=args.runtime,
         verbose=args.verbose,
+        gateway_url=config.gateway_url if config.is_gateway_url(url) else None,
     )
     report = train.run_train(opts)
     return report, train.format_report(report), train.exit_code(report)

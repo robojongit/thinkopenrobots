@@ -2,8 +2,10 @@
 enough for `bench`'s tests: device-flow login (approved through ``POST /dev/approve``, as a
 person would on github.com), submissions with the 3-per-24-hours and one-queued rules, status,
 picks, remote training runs with downloadable episode folders, the public leaderboard (with each
-submission's coding agent, read from ``agent/NOTES.md`` by the same rule as the server), and a
-chat endpoint that can pretend the shared model is waking up. The real server lives in the
+submission's coding agent, read from ``agent/NOTES.md`` by the same rule as the server), the daily
+model allowance (``old_gateway``: only ``/v1/me``'s ``tokens_today`` and ``tokens_per_day``, as
+before the ``model`` object existed), and a chat endpoint that can pretend the shared model is
+waking up or the allowance is used. The real server lives in the
 private ops repo; the tests run against it too when ``INKLING_OPS_DIR`` points at that repo.
 """
 
@@ -32,6 +34,10 @@ class State:
         self.picks: dict[str, list[str]] = {}
         self.window_open = False
         self.waking = 0  # model requests still to answer 503 "waking"
+        self.tokens_per_day = 30_000_000
+        self.tokens_used = 0
+        self.old_gateway = False
+        self.chat_requests = 0
         self.auth_seen: list[str | None] = []
         self.uploads: list[bytes] = []
 
@@ -197,6 +203,16 @@ class FakeGateway:
                     if path == "/v1/chat/completions":
                         if self._account() is None:
                             return None
+                        state.chat_requests += 1
+                        if state.tokens_used >= state.tokens_per_day:
+                            error = {
+                                "code": "model_allowance_used",
+                                "message": "daily model allowance used",
+                                "tokens_used": state.tokens_used,
+                                "tokens_per_day": state.tokens_per_day,
+                                "resets_at": "2026-12-02T00:00:00Z",
+                            }
+                            return self._send(429, {"error": error}, {"Retry-After": "50000"})
                         if state.waking:
                             state.waking -= 1
                             return self._error(
@@ -345,8 +361,20 @@ class FakeGateway:
                     if account is None:
                         return None
                     mine = [j for j in state.jobs if j["account"] == account]
+                    model = {
+                        "tokens_per_day": state.tokens_per_day,
+                        "tokens_used": state.tokens_used,
+                        "resets_at": "2026-12-02T00:00:00Z",
+                        "concurrent_requests": 4,
+                    }
+                    new = {} if state.old_gateway else {"model": model}
                     if path == "/v1/me":
-                        return self._send(200, {"account": account, "tokens_today": 0})
+                        me = {
+                            "account": account,
+                            "tokens_today": state.tokens_used,
+                            "tokens_per_day": state.tokens_per_day,
+                        }
+                        return self._send(200, {**me, **new})
                     if path == "/v1/submissions":
                         subs = [self._view(j) for j in mine if j["kind"] == "score"][::-1]
                         return self._send(
@@ -354,6 +382,7 @@ class FakeGateway:
                             {
                                 "submissions": subs,
                                 "limits": {"per_24h": 3, "used_24h": len(subs), "next_at": None},
+                                **new,
                             },
                         )
                     if path == "/v1/picks":

@@ -1,10 +1,15 @@
 """Telling model-server trouble from task failure, and waiting it out.
 
 `LLMRelay` logs every failed model request in ``llm.jsonl`` with an ``upstream`` record:
-``kind`` ("http", "unreachable", "timeout", "malformed"), the HTTP ``status`` and the parsed
-``Retry-After`` seconds. That is what `classify` reads (logs from before that record existed
-are read from the error message). Before retrying, `probe` asks the server again with a
-one-token request.
+``kind`` ("http", "unreachable", "timeout", "malformed"), the HTTP ``status``, the parsed
+``Retry-After`` seconds and the gateway's error ``code``. That is what `classify` reads (logs
+from before that record existed are read from the error message). Before retrying, `probe` asks
+the server again with a one-token request.
+
+Some answers are not worth waiting for: the account's daily model allowance is used
+(`bench.allowance`), the shared model's daily allowance of idle time is used, or the server asks
+to retry later than `MAX_RETRY_AFTER_S`. `wait_until_ready` returns those at once, and
+`stop_reason` says what to tell the person and which exit code to use.
 """
 
 from __future__ import annotations
@@ -23,8 +28,14 @@ from typing import TextIO
 
 from harness.llm_relay import chat_url
 
+from .allowance import QUOTA_CODES, used_up
+from .exitcodes import ExitCode
+
 PROBE_TIMEOUT_S = 30.0
 MAX_RETRY_AFTER_S = 600.0
+"""The longest single wait; a server asking for more is reported, not waited for."""
+LIMIT_CODES = frozenset({*QUOTA_CODES, "chat_allowance_used"})
+MAX_ERROR_BYTES = 65536
 _HTTP = re.compile(r"returned HTTP (\d{3})")
 
 
@@ -34,7 +45,12 @@ class Probe:
 
     status: int | None
     retry_after: float | None = None
+    """As the server sent it; `wait_until_ready` waits at most `MAX_RETRY_AFTER_S` at a time."""
     error: str = ""
+    code: str | None = None
+    """The gateway's error code (``{"error": {"code": ...}}``), if the answer had one."""
+    body: dict | None = None
+    """The answer's ``error`` object, if it had one."""
 
     @property
     def ok(self) -> bool:
@@ -45,16 +61,57 @@ class Probe:
         """Worth waiting for: unreachable, 429, or any 5xx."""
         return self.status is None or self.status == 429 or self.status >= 500
 
+    @property
+    def limited(self) -> bool:
+        """Refused by a competition limit that lasts hours: waiting minutes does not help."""
+        return self.status in (429, 503) and self.code in LIMIT_CODES
+
+    @property
+    def too_long(self) -> bool:
+        """A transient answer asking to retry later than bench waits."""
+        return self.transient and (self.retry_after or 0) > MAX_RETRY_AFTER_S
+
+    @property
+    def stops(self) -> bool:
+        return not self.ok and (self.limited or self.too_long)
+
 
 def _retry_after(value: str | None) -> float | None:
     try:
         seconds = float(value) if value else None
     except ValueError:
         return None  # an HTTP date: treat as absent and use the default wait
-    return min(max(seconds, 0.0), MAX_RETRY_AFTER_S) if seconds is not None else None
+    return max(seconds, 0.0) if seconds is not None else None
 
 
 retry_after_header = _retry_after
+
+
+def _error_object(raw: bytes) -> dict | None:
+    try:
+        error = json.loads(raw)["error"]
+    except (ValueError, KeyError, TypeError):
+        return None
+    return error if isinstance(error, dict) else None
+
+
+def _hours(seconds: float) -> str:
+    return f"{seconds / 3600:.1f} h" if seconds >= 3600 else f"{math.ceil(seconds / 60)} minutes"
+
+
+def stop_reason(result: Probe) -> tuple[ExitCode, str]:
+    """Exit code and message for a probe that `stops` a run."""
+    if result.code in QUOTA_CODES:
+        return ExitCode.LIMITED, used_up(result.body, result.retry_after)
+    server = str((result.body or {}).get("message") or result.error)[:500]
+    later = "Rerun the same command (same --out) later to finish the run, or use your own model"
+    if result.limited:
+        return ExitCode.LIMITED, f"{server}. {later} (--model-url)."
+    return ExitCode.INFRA, (
+        f"the model server asks to retry in {_hours(result.retry_after or 0)} ({result.error}"
+        f"{': ' + server if server != result.error else ''}), longer than bench waits "
+        f"({_hours(MAX_RETRY_AFTER_S)}); stopping. {later} (--model-url)."
+    )
 
 
 def probe(model_url: str, model: str, api_key: str | None) -> Probe:
@@ -69,7 +126,14 @@ def probe(model_url: str, model: str, api_key: str | None) -> Probe:
         with urllib.request.urlopen(request, timeout=PROBE_TIMEOUT_S) as response:
             return Probe(response.status)
     except urllib.error.HTTPError as e:
-        return Probe(e.code, _retry_after(e.headers.get("Retry-After")), f"HTTP {e.code}")
+        retry = _retry_after(e.headers.get("Retry-After") if e.headers else None)
+        try:
+            error = _error_object(e.read(MAX_ERROR_BYTES))
+        except OSError:
+            error = None
+        code = error.get("code") if error else None
+        code = code if isinstance(code, str) and code else None
+        return Probe(e.code, retry, f"HTTP {e.code}" + (f" {code}" if code else ""), code, error)
     except (urllib.error.URLError, OSError) as e:
         return Probe(None, error=f"unreachable: {getattr(e, 'reason', e)}")
 
@@ -118,23 +182,25 @@ def wait_until_ready(
     sleep: Callable[[float], None] = time.sleep,
     log: Callable[[str], None] = say,
 ) -> Probe:
-    """Probe until the server answers 200, a non-transient error, or ``max_wait_s`` passes.
+    """Probe until the server answers 200, a non-transient error, an answer that `stops` a run
+    (returned at once), or ``max_wait_s`` passes.
 
-    A 429 waits for ``Retry-After``; a 503 with ``Retry-After`` means the shared model is
-    waking up. Anything else transient waits ``default_wait_s``, doubling each time. Returns the
-    last probe.
+    A 429 waits for ``Retry-After``; a 503 with ``Retry-After`` (code ``waking``, or none from
+    other servers) means the shared model is waking up. Anything else transient waits
+    ``default_wait_s``, doubling each time. Returns the last probe.
     """
     waited, delay = 0.0, default_wait_s
     while True:
         result = check()
-        if result.ok or not result.transient or waited >= max_wait_s:
+        if result.ok or not result.transient or result.stops or waited >= max_wait_s:
             return result
-        wait = result.retry_after or delay
-        if result.status == 503 and result.retry_after:
+        wait = min(result.retry_after or delay, MAX_RETRY_AFTER_S)
+        if result.status == 503 and result.retry_after and result.code in (None, "waking"):
             minutes = math.ceil(wait / 60)
             log(f"waking the shared model, about {minutes} minute{'s' * (minutes != 1)}")
         elif result.status == 429:
-            log(f"rate limited by the model server (429); waiting {wait:.0f}s")
+            what = f" {result.code}" if result.code else ""
+            log(f"rate limited by the model server (429{what}); waiting {wait:.0f}s")
         else:
             log(f"model server trouble ({result.error}); waiting {wait:.0f}s")
         delay = min(delay * 2, 120.0)

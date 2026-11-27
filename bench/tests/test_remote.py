@@ -346,6 +346,24 @@ def test_submit_status_and_pick(capsys, home, server, monkeypatch):
     assert run_cli(capsys, "pick", "a", "b", "c")[0] == ExitCode.USAGE
 
 
+def test_status_shows_the_daily_model_allowance(capsys, home, server, monkeypatch):
+    login(capsys, server, monkeypatch)
+    code, out, _ = run_cli(capsys, "status")
+    assert code == 0 and "model tokens today: 0 of " in out and " used, resets at " in out
+    code, out, _ = run_cli(capsys, "status", "--json")
+    model = json.loads(out)["model"]
+    assert model["tokens_used"] == 0 and model["tokens_per_day"] > 0
+    assert model["resets_at"].endswith("T00:00:00Z")
+
+
+def test_status_reads_the_allowance_from_an_older_gateway(capsys, home, fake, monkeypatch):
+    login(capsys, fake, monkeypatch)
+    fake.fake.state.old_gateway = True
+    fake.fake.state.tokens_used = 1234
+    code, out, _ = run_cli(capsys, "status")
+    assert code == 0 and "model tokens today: 1,234 of 30,000,000 used" in out
+
+
 def test_quota_and_window_errors_map_to_limited(capsys, home, fake, monkeypatch):
     login(capsys, fake, monkeypatch)
     for _ in range(3):

@@ -41,10 +41,9 @@ def options(tmp_path: Path, agent: Path, url: str, **kwargs) -> TrainOptions:
         "default_wait_s": 0.01,
         "max_wait_s": 0.1,
         "results_tsv": tmp_path / "results.tsv",
+        "api_key": None,
     }
-    return TrainOptions(
-        agent_dir=agent, model_url=url, model="m", api_key=None, **{**defaults, **kwargs}
-    )
+    return TrainOptions(agent_dir=agent, model_url=url, model="m", **{**defaults, **kwargs})
 
 
 def server_error(status: int):
@@ -267,3 +266,119 @@ def test_estimate_figures():
     assert "roughly 74 minutes to 2.3 hours" in format_estimate(210, 2)
     assert "1 episode at 1 worker" in format_estimate(1, 1)
     assert "(5 already scored)" in format_estimate(30, 2, done=5)
+
+
+def allowance_used(body):
+    error = {
+        "code": "model_allowance_used",
+        "message": "daily model allowance used",
+        "tokens_used": 5_018_043,
+        "tokens_per_day": 5_000_000,
+        "resets_at": "2026-11-28T00:00:00Z",
+    }
+    return 429, {"error": error}, {"Retry-After": "52238"}
+
+
+@pytest.mark.parametrize("retries", [2, 0])
+def test_a_used_up_allowance_stops_the_run_at_once_and_it_resumes_later(
+    make_agent, tmp_path, retries
+):
+    agent = make_agent(CHAT_AND_RUN)
+    # preflight ok, episode 1 ok, then the allowance is used
+    with FakeModel([LIFT_REPLY, LIFT_REPLY, allowance_used]) as model:
+        seeds = {"cube_lifting": [1, 2, 3]}
+        opts = options(tmp_path, agent, model.url, seeds=seeds, workers=1, retries=retries)
+        with pytest.raises(CliError) as e:
+            run_train(opts, FakeEnv)
+    assert e.value.code == ExitCode.LIMITED == 8
+    assert e.value.message.startswith("1/3 episodes scored in ")
+    assert "daily model allowance used: 5,018,043 of 5,000,000 tokens, resets at 00:00 UTC" in (
+        e.value.message
+    )
+    assert len(model.requests) == 4  # episode 2's call and one probe: no waits, no retries
+    assert (opts.out / "cube_lifting/seed_2/infra.json").exists()
+    assert not (opts.out / "cube_lifting/seed_3").exists()  # not started
+    assert json.loads((opts.out / "score.json").read_text())["episodes"] == 1
+    with FakeModel([LIFT_REPLY]) as healthy:
+        report = run_train(dataclasses.replace(opts, model_url=healthy.url), FakeEnv)
+    assert report["complete"] and report["episodes"] == 3 and exit_code(report) == ExitCode.OK
+
+
+def test_a_used_up_allowance_stops_before_any_episode(make_agent, tmp_path):
+    agent = make_agent(CHAT_AND_RUN)
+    with FakeModel([allowance_used]) as model:
+        opts = options(tmp_path, agent, model.url)
+        with pytest.raises(CliError) as e:
+            run_train(opts, FakeEnv)
+    assert e.value.code == ExitCode.LIMITED and len(model.requests) == 1
+    assert "resets at 00:00 UTC" in e.value.message and not (opts.out / "cube_lifting").exists()
+
+
+def test_two_runs_past_the_concurrent_limit_wait_instead_of_failing(make_agent, tmp_path):
+    error = {"code": "too_many_concurrent", "message": "at most 4 model requests at a time"}
+    busy = lambda body: (429, {"error": error}, {"Retry-After": "1"})  # noqa: E731
+    agent = make_agent(CHAT_AND_RUN)
+    with FakeModel([LIFT_REPLY, busy, LIFT_REPLY]) as model:
+        report = run_train(
+            options(tmp_path, agent, model.url, seeds={"cube_lifting": [1]}, workers=1), FakeEnv
+        )
+    assert report["overall"] == 1.0 and report["infra_failed"] == 0 and len(model.requests) == 3
+    llm = (tmp_path / "runs/r1/cube_lifting/seed_1/llm.jsonl").read_text()
+    assert '"rate_limited_s": 1.0' in llm
+
+
+@pytest.fixture
+def gateway():
+    from bench.tests.fake_gateway import FakeGateway
+
+    with FakeGateway() as gw:
+        gw.state.keys["ink_" + "k" * 43] = "alice"
+        yield gw
+
+
+def via_gateway(tmp_path, agent, gw, **kwargs):
+    return options(
+        tmp_path,
+        agent,
+        gw.url + "/v1",
+        api_key="ink_" + "k" * 43,
+        gateway_url=gw.url,
+        seeds={"cube_lifting": [1]},
+        workers=1,
+        **kwargs,
+    )
+
+
+def test_train_shows_the_allowance_and_warns_when_the_plan_may_not_fit(
+    make_agent, tmp_path, gateway, capsys
+):
+    gateway.state.tokens_per_day, gateway.state.tokens_used = 50_000, 1_000
+    run_train(via_gateway(tmp_path, make_agent(CHAT_AND_RUN), gateway), FakeEnv)
+    err = capsys.readouterr().err
+    assert "model tokens today: 1,000 of 50,000 used, resets at " in err
+    assert "this run needs at most 66,000 tokens (1 x the 66,000-token episode budget" in err
+    assert "warning: that may be more than the 49,000 tokens left today (about 0 episodes)" in err
+
+
+def test_train_estimates_from_this_agents_last_run(make_agent, tmp_path, gateway, capsys):
+    from bench.train import agent_fingerprint
+
+    agent = make_agent(CHAT_AND_RUN)
+    sha = agent_fingerprint(agent)
+    (tmp_path / "results.tsv").write_text(
+        "run_id\tagent_sha\ttokens_mean\nold\tffffffffffff\t9\nr0\t" + sha + "\t26500.0\n"
+    )
+    gateway.state.old_gateway = True  # only tokens_today and tokens_per_day: still read
+    run_train(via_gateway(tmp_path, agent, gateway), FakeEnv)
+    err = capsys.readouterr().err
+    assert "model tokens today: 0 of 30,000,000 used" in err
+    assert "this run needs about 26,500 tokens (1 x 26,500, the mean of r0)" in err
+    assert "warning" not in err
+
+
+def test_train_with_the_allowance_used_stops_before_asking_the_model(make_agent, tmp_path, gateway):
+    gateway.state.tokens_used = gateway.state.tokens_per_day
+    with pytest.raises(CliError) as e:
+        run_train(via_gateway(tmp_path, make_agent(CHAT_AND_RUN), gateway), FakeEnv)
+    assert e.value.code == ExitCode.LIMITED and gateway.state.chat_requests == 0
+    assert "daily model allowance used: 30,000,000 of 30,000,000 tokens" in e.value.message
