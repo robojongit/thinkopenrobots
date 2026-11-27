@@ -373,3 +373,41 @@ def test_log_budget_keeps_the_first_entries_then_only_counts():
         relay = relay_for(model, log_budget=LogBudget(10))
         relay.chat(MSGS, {})
     assert relay.log == [] and relay.log_budget.dropped == {"model requests": 1}
+
+
+def too_many_at_once(retry: str = "1"):
+    error = {"code": "too_many_concurrent", "message": "at most 4 model requests at a time"}
+    return lambda b: (429, {"error": error}, {"Retry-After": retry})
+
+
+def test_a_short_429_is_waited_out_and_sent_again():
+    # Two runs on one account, past its concurrent-request limit: the agent sees only the reply.
+    with FakeModel([too_many_at_once(), too_many_at_once(), "hi"]) as model:
+        relay = relay_for(model)
+        reply = relay.chat(MSGS, {})
+    assert reply["content"] == "hi" and len(model.requests) == 3
+    assert relay.calls == 1 and relay.upstream_errors == 0 and relay.upstream_failures == []
+    assert relay.log[-1]["rate_limited_s"] == 2.0 and "error" not in relay.log[-1]
+
+
+def test_a_short_429_is_not_waited_past_the_deadline():
+    with FakeModel([too_many_at_once("5")]) as model:
+        relay = relay_for(model, wall=1.0)
+        t0 = time.monotonic()
+        with pytest.raises(RpcError) as e:
+            relay.chat(MSGS, {})
+    assert time.monotonic() - t0 < 1.0 and len(model.requests) == 1
+    assert e.value.data["code"] == "too_many_concurrent" and relay.upstream_errors == 1
+
+
+def test_a_long_429_is_not_waited_for_and_its_code_is_data():
+    error = {"code": "model_allowance_used", "message": "daily model allowance used"}
+    with FakeModel([lambda b: (429, {"error": error}, {"Retry-After": "52238"})]) as model:
+        relay = relay_for(model)
+        with pytest.raises(RpcError) as e:
+            relay.chat(MSGS, {})
+    assert len(model.requests) == 1
+    assert e.value.data == {
+        "kind": "http", "status": 429, "retry_after": 52238.0, "code": "model_allowance_used"
+    }  # fmt: skip
+    assert e.value.message == "model server returned HTTP 429 (model_allowance_used)"

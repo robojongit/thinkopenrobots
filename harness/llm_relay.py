@@ -11,8 +11,11 @@ in the tokens left, or in the model's context, is refused, and ``max_tokens`` is
 bound + ``max_tokens`` fits in both: the budget can no longer be overshot by a long prompt.
 
 A request still unanswered when the episode's time runs out is refused as a "wall" limit, not
-logged as a model-server failure. Any other forwarded request that fails (HTTP error, timeout,
-unusable reply) is free for the first
+logged as a model-server failure. A 429 with a short ``Retry-After`` (at most
+``SHORT_RETRY_AFTER_S``: too many requests at once, say from two runs on one account) is waited
+out and sent again while the episode has time; the agent sees only the reply, and its log entry
+says how long it waited. Any other forwarded request that fails (HTTP error, timeout, unusable
+reply) is free for the first
 ``FREE_FAILED_CALLS`` of an episode and counts as a model call after that, so failures cannot
 make the model server work without limit. Failed requests are logged without their prompt.
 
@@ -61,6 +64,9 @@ OPTIONS: dict[str, tuple[type, float, float]] = {
 }
 MAX_STOP = 4
 MAX_STOP_LEN = 64
+SHORT_RETRY_AFTER_S = 30.0
+"""A 429 asking to retry within this many seconds is waited out inside the episode."""
+MAX_ERROR_BYTES = 65536
 
 
 def retry_after_seconds(value: str | None, now: float | None = None) -> float | None:
@@ -79,12 +85,39 @@ def retry_after_seconds(value: str | None, now: float | None = None) -> float | 
     return max(when - (time.time() if now is None else now), 0.0)
 
 
-def _upstream(message: str, kind: str, status: int | None = None, retry: float | None = None):
+def _upstream(
+    message: str,
+    kind: str,
+    status: int | None = None,
+    retry: float | None = None,
+    code: str | None = None,
+):
     """An ``upstream`` RpcError whose data says what happened: ``kind`` is "http" (non-2xx),
     "unreachable", "timeout" or "malformed"; ``status`` the HTTP status if one was received;
-    ``retry_after`` the parsed ``Retry-After`` in seconds."""
-    data = {"kind": kind, "status": status, "retry_after": retry}
+    ``retry_after`` the parsed ``Retry-After`` in seconds; ``code``, when the server's error
+    body had one (``{"error": {"code": ...}}``, as the competition gateway sends)."""
+    data: dict[str, Any] = {"kind": kind, "status": status, "retry_after": retry}
+    if code:
+        data["code"] = code
     return RpcError("upstream", message, data=data)
+
+
+def error_code(raw: bytes) -> str | None:
+    """``error.code`` of an error body ``{"error": {"code": ...}}``, if it has a short one."""
+    try:
+        code = json.loads(raw)["error"]["code"]
+    except (ValueError, KeyError, TypeError):
+        return None
+    return code if isinstance(code, str) and 0 < len(code) <= 64 else None
+
+
+def _short_wait(error: RpcError) -> float | None:
+    """Seconds to wait before sending again, for a 429 with a short ``Retry-After``."""
+    data = error.data or {}
+    retry = data.get("retry_after")
+    if data.get("kind") == "http" and data.get("status") == 429 and retry:
+        return retry if 0 < retry <= SHORT_RETRY_AFTER_S else None
+    return None
 
 
 @dataclass(frozen=True)
@@ -307,8 +340,20 @@ class LLMRelay:
             }
             self.forwarded += 1
             started = time.monotonic()
+            waited = 0.0
             try:
-                body = self._post(payload, timeout=remaining_s)
+                while True:
+                    try:
+                        body = self._post(payload, timeout=self.deadline - time.monotonic())
+                        break
+                    except RpcError as e:
+                        wait = _short_wait(e)
+                        if wait is None or time.monotonic() + wait >= self.deadline:
+                            raise
+                        time.sleep(wait)
+                        waited += wait
+                if waited:
+                    entry["rate_limited_s"] = round(waited, 1)
                 reply = _parse_reply(body)
             except RpcError as e:
                 if (e.data or {}).get("kind") == "timeout" and time.monotonic() >= self.deadline:
@@ -367,7 +412,12 @@ class LLMRelay:
                 raw = resp.read(MAX_RESPONSE_BYTES + 1)
         except urllib.error.HTTPError as e:
             retry = retry_after_seconds(e.headers.get("Retry-After") if e.headers else None)
-            raise _upstream(f"model server returned HTTP {e.code}", "http", e.code, retry) from None
+            try:
+                code = error_code(e.read(MAX_ERROR_BYTES))
+            except OSError:
+                code = None
+            message = f"model server returned HTTP {e.code}" + (f" ({code})" if code else "")
+            raise _upstream(message, "http", e.code, retry, code) from None
         except TimeoutError as e:
             raise _upstream(f"model server timed out: {e}", "timeout") from None
         except urllib.error.URLError as e:
